@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#020617" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>ChronoHume // 4-to-4 HUD</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      background-color: #020617;
+      color: #f1f5f9;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overscroll-behavior-y: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .cyber-glow {
+      box-shadow: 0 0 20px rgba(6, 182, 212, 0.25);
+    }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between pb-20 select-none">
+
+  <!-- TOP HEADER -->
+  <header class="sticky top-0 z-30 bg-slate-950/90 backdrop-blur-md border-b border-slate-800 px-4 py-3">
+    <div class="max-w-5xl mx-auto flex justify-between items-center">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></span>
+          <h1 class="text-lg md:text-xl font-bold tracking-wider text-cyan-400 font-mono">
+            CHRONOHUME // 4-TO-4 HUD
+          </h1>
+        </div>
+        <p id="header-sub" class="text-[11px] text-slate-400 font-mono mt-0.5">
+          C-SHIFT ROTATION ENGINE • 04:00–16:00 / 16:00–04:00
+        </p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="install-btn" class="hidden px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-mono font-bold text-xs uppercase tracking-wider shadow-lg">
+          Install App
+        </button>
+        <span id="active-shift-pill" class="px-3 py-1 rounded-full border text-xs font-mono font-bold uppercase tracking-wider border-cyan-500/50 bg-cyan-950/40 text-cyan-300">
+          Loading...
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="max-w-5xl w-full mx-auto px-4 pt-4 flex-1">
+
+    <!-- TAB 1: BIOMETRIC HUD -->
+    <section id="tab-hud" class="space-y-5">
+      <!-- Today's Auto-Detected Shift Banner -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+        <div>
+          <span class="text-[10px] font-mono uppercase tracking-widest text-slate-400">AUTO-DETECTED SCHEDULE STATUS</span>
+          <h2 id="detected-shift-title" class="text-lg font-bold text-white font-mono">--</h2>
+          <p id="detected-shift-desc" class="text-xs text-slate-400 mt-0.5">--</p>
+        </div>
+        <div class="flex gap-2 w-full md:w-auto">
+          <button onclick="applyPreset('nightFatigue')" class="flex-1 md:flex-initial px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono text-slate-300 hover:border-cyan-500">
+            16-04 Night Load
+          </button>
+          <button onclick="applyPreset('dayGrind')" class="flex-1 md:flex-initial px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono text-slate-300 hover:border-cyan-500">
+            04-16 Day Grind
+          </button>
+          <button onclick="applyPreset('offPeak')" class="flex-1 md:flex-initial px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono text-slate-300 hover:border-cyan-500">
+            Off-Shift Peak
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <!-- Biometric Sliders & Live Sync -->
+        <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4 space-y-4">
+          <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+            <h3 class="text-xs font-mono uppercase tracking-widest text-cyan-400">Hume / Watch Ultra Input</h3>
+            <span class="text-[10px] font-mono text-slate-500">LIVE TELEMETRY</span>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs font-mono mb-1">
+              <span class="text-slate-400">SLEEP SCORE</span>
+              <span id="val-sleep" class="text-cyan-400 font-bold">64 / 100</span>
+            </div>
+            <input id="input-sleep" type="range" min="30" max="100" value="64" oninput="updateSliders()" class="w-full accent-cyan-400" />
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs font-mono mb-1">
+              <span class="text-slate-400">HRV BASELINE DEV</span>
+              <span id="val-hrv" class="text-rose-400 font-bold">-14%</span>
+            </div>
+            <input id="input-hrv" type="range" min="-35" max="25" value="-14" oninput="updateSliders()" class="w-full accent-cyan-400" />
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs font-mono mb-1">
+              <span class="text-slate-400">RESTING HR</span>
+              <span id="val-rhr" class="text-white font-bold">66 BPM</span>
+            </div>
+            <input id="input-rhr" type="range" min="45" max="90" value="66" oninput="updateSliders()" class="w-full accent-cyan-400" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-mono text-slate-400 mb-1">SHIFT OVERRIDE</label>
+            <select id="input-shift-override" onchange="updateSliders()" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-cyan-300">
+              <option value="AUTO">Auto-Detect from Calendar</option>
+              <option value="DAY">04:00 - 16:00 (Day Shift)</option>
+              <option value="NIGHT">16:00 - 04:00 (Night Shift)</option>
+              <option value="ERT">16:00 - 04:00 (ERT / Turnaround High-Load)</option>
+              <option value="OFF">Off-Rotation (Recovery Day)</option>
+            </select>
+          </div>
+
+          <button id="btn-sync-gemini" onclick="syncWithGemini()" class="w-full py-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-mono font-bold text-xs uppercase tracking-widest transition cyber-glow">
+            Sync Biometrics with Gemini AI
+          </button>
+          <p id="sync-status" class="text-[11px] font-mono text-center text-slate-400"></p>
+        </div>
+
+        <!-- Recovery Output Card -->
+        <div class="lg:col-span-2 bg-slate-900/90 border border-slate-800 rounded-xl p-5 space-y-5">
+          <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+            <div>
+              <span class="text-[10px] font-mono text-slate-400 uppercase tracking-widest">GEMINI RECOVERY PROTOCOL</span>
+              <h3 id="plan-shift-label" class="text-lg font-bold text-white">--</h3>
+            </div>
+            <span id="plan-readiness-badge" class="px-3.5 py-1 rounded-full border font-mono text-xs font-bold uppercase tracking-widest">
+              Readiness: --
+            </span>
+          </div>
+
+          <!-- Circadian Strategy -->
+          <div>
+            <h4 class="text-xs font-mono uppercase tracking-widest text-cyan-400 mb-1.5">
+              // 4-to-4 Circadian & Caffeine Protocol
+            </h4>
+            <p id="plan-strategy" class="bg-slate-950 border border-slate-800 p-3.5 rounded-lg text-sm text-slate-200 leading-relaxed"></p>
+          </div>
+
+          <!-- Conditioning -->
+          <div>
+            <h4 class="text-xs font-mono uppercase tracking-widest text-purple-400 mb-1.5">
+              // Conditioning (40lb Dumbbells / Y-Raises / Compex 2.0)
+            </h4>
+            <p id="plan-workout" class="bg-slate-950 border border-slate-800 p-3.5 rounded-lg text-sm text-slate-200 leading-relaxed"></p>
+          </div>
+
+          <!-- Fuel Windows -->
+          <div>
+            <h4 class="text-xs font-mono uppercase tracking-widest text-emerald-400 mb-1.5">
+              // 04:00–16:00 / 16:00–04:00 Fueling Windows
+            </h4>
+            <ul id="plan-meals" class="bg-slate-950 border border-slate-800 p-3.5 rounded-lg space-y-2.5 text-sm text-slate-200"></ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: 4-TO-4 SHIFT CALENDAR CALCULATOR -->
+    <section id="tab-calendar" class="hidden space-y-5">
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-5 space-y-4">
+        <h2 class="text-base font-bold text-cyan-400 font-mono uppercase tracking-wider">
+          4-to-4 C-Shift Rotation Calculator
+        </h2>
+        <p class="text-xs text-slate-400 leading-relaxed">
+          Set your plant rotation pattern and pick the date of your <strong>Day 1 (first 04:00–16:00 Day Shift of the cycle)</strong>. ChronoHume automatically computes your rotation status for today and the next 14 days.
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+          <div>
+            <label class="block text-xs font-mono text-slate-400 mb-1">ROTATION PATTERN</label>
+            <select id="cal-pattern" onchange="saveCalendarConfig()" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-xs font-mono text-cyan-300">
+              <option value="DUPONT">DuPont 28-Day Cycle (4D-3O-3N-1O-3D-3O-4N-7O)</option>
+              <option value="FOUR_FOUR">4-On / 4-Off Rotating (4 Days, 4 Off, 4 Nights, 4 Off)</option>
+              <option value="PITMAN">2-2-3 Pitman (28-Day Flip Between Days & Nights)</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-mono text-slate-400 mb-1">CYCLE DAY 1 ANCHOR (FIRST 04:00 DAY SHIFT)</label>
+            <input id="cal-anchor" type="date" onchange="saveCalendarConfig()" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-white" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-mono text-slate-400 mb-1">TARGET PREVIEW DATE</label>
+            <input id="cal-target" type="date" onchange="saveCalendarConfig()" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-emerald-400" />
+          </div>
+        </div>
+      </div>
+
+      <!-- 14-Day Lookahead Strip -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-5 space-y-3">
+        <h3 class="text-xs font-mono uppercase tracking-widest text-purple-400">
+          // 14-Day 4-to-4 Rotation Lookahead
+        </h3>
+        <div id="calendar-grid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2.5"></div>
+      </div>
+    </section>
+
+    <!-- TAB 3: GOVEE SMART LIGHTING TRIGGERS -->
+    <section id="tab-govee" class="hidden space-y-5">
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-5 space-y-4">
+        <h2 class="text-base font-bold text-cyan-400 font-mono uppercase tracking-wider">
+          Govee IFTTT One-Tap 4-to-4 Lighting Controller
+        </h2>
+        <p class="text-xs text-slate-400">
+          Tap any preset below to fire an HTTP webhook directly from your Galaxy Z Fold 7 to IFTTT to shift your Govee game room and bedroom lights.
+        </p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+          <button onclick="triggerGovee('c_shift_0245_wake')" class="p-4 rounded-xl bg-slate-950 border border-amber-500/40 hover:border-amber-400 text-left transition">
+            <div class="text-xs font-mono font-bold text-amber-400">02:45 DAY SHIFT DAWN SIM</div>
+            <div class="text-[11px] text-slate-400 mt-1">Event: <code class="text-slate-200">c_shift_0245_wake</code> • Warm 2700K -> 5000K Daylight ramp before 04:00 handover</div>
+          </button>
+
+          <button onclick="triggerGovee('c_shift_1430_wake')" class="p-4 rounded-xl bg-slate-950 border border-cyan-500/40 hover:border-cyan-400 text-left transition">
+            <div class="text-xs font-mono font-bold text-cyan-400">14:30 NIGHT SHIFT WAKE RAMP</div>
+            <div class="text-[11px] text-slate-400 mt-1">Event: <code class="text-slate-200">c_shift_1430_wake</code> • High-lux cyan/white boost before 16:00 clock-in</div>
+          </button>
+
+          <button onclick="triggerGovee('c_shift_0430_winddown')" class="p-4 rounded-xl bg-slate-950 border border-rose-500/40 hover:border-rose-400 text-left transition">
+            <div class="text-xs font-mono font-bold text-rose-400">04:30 POST-NIGHT RED LOCKDOWN</div>
+            <div class="text-[11px] text-slate-400 mt-1">Event: <code class="text-slate-200">c_shift_0430_winddown</code> • Zero-blue deep crimson at 15% brightness for 05:00 sleep</div>
+          </button>
+
+          <button onclick="triggerGovee('cyberpunk_game_room')" class="p-4 rounded-xl bg-slate-950 border border-purple-500/40 hover:border-purple-400 text-left transition">
+            <div class="text-xs font-mono font-bold text-purple-400">OFF-SHIFT CYBERPUNK NEON</div>
+            <div class="text-[11px] text-slate-400 mt-1">Event: <code class="text-slate-200">cyberpunk_game_room</code> • Full Govee neon cyan/magenta game room profile</div>
+          </button>
+        </div>
+
+        <div id="govee-log" class="bg-slate-950 border border-slate-800 rounded-lg p-3 font-mono text-xs text-emerald-400">
+          Ready. Configure your IFTTT Webhook Key in the Setup tab to fire live requests.
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: API KEYS & ANDROID INSTALL GUIDE -->
+    <section id="tab-setup" class="hidden space-y-5">
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-5 space-y-4">
+        <h2 class="text-base font-bold text-cyan-400 font-mono uppercase tracking-wider">
+          On-Device API Keys (Saved Locally on Phone)
+        </h2>
+        <p class="text-xs text-slate-400">
+          Keys are stored strictly in your phone's local browser storage (<code class="text-cyan-300">localStorage</code>) so you don't need a desktop backend server running.
+        </p>
+
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs font-mono text-slate-400 mb-1">GEMINI API KEY (Google AI Studio)</label>
+            <input id="cfg-gemini-key" type="password" placeholder="AIzaSy..." class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-cyan-300" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-mono text-slate-400 mb-1">IFTTT WEBHOOK KEY (Maker Webhooks)</label>
+            <input id="cfg-ifttt-key" type="password" placeholder="Your IFTTT Webhook Key" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-purple-300" />
+          </div>
+
+          <button onclick="saveApiKeys()" class="px-5 py-2.5 rounded-lg bg-emerald-500 text-slate-950 font-mono font-bold text-xs uppercase tracking-wider">
+            Save Keys to Device
+          </button>
+          <span id="key-save-msg" class="text-xs font-mono text-emerald-400 ml-2"></span>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- BOTTOM ANDROID NAVIGATION BAR -->
+  <nav class="fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-md border-t border-slate-800 px-2 py-2">
+    <div class="max-w-md mx-auto grid grid-cols-4 gap-1">
+      <button onclick="switchTab('hud')" id="nav-hud" class="py-2 rounded-lg font-mono text-[11px] font-bold text-cyan-400 bg-slate-900">
+        HUD
+      </button>
+      <button onclick="switchTab('calendar')" id="nav-calendar" class="py-2 rounded-lg font-mono text-[11px] text-slate-400">
+        4-4 Sched
+      </button>
+      <button onclick="switchTab('govee')" id="nav-govee" class="py-2 rounded-lg font-mono text-[11px] text-slate-400">
+        Govee
+      </button>
+      <button onclick="switchTab('setup')" id="nav-setup" class="py-2 rounded-lg font-mono text-[11px] text-slate-400">
+        Setup/API
+      </button>
+    </div>
+  </nav>
+
+  <script>
+    // =========================================================
+    // 1. DYNAMIC PWA MANIFEST & SERVICE WORKER FOR ANDROID
+    // =========================================================
+    (function setupPWA() {
+      const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="96" fill="#020617"/><circle cx="256" cy="256" r="190" stroke="#06b6d4" stroke-width="24" fill="none"/><path d="M160 256h60l36-90 40 180 36-90h50" stroke="#a855f7" stroke-width="24" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+      const iconUrl = "data:image/svg+xml;base64," + btoa(iconSvg);
+
+      const manifest = {
+        name: "ChronoHume 4-to-4 HUD",
+        short_name: "ChronoHume",
+        start_url: ".",
+        display: "standalone",
+        background_color: "#020617",
+        theme_color: "#020617",
+        orientation: "any",
+        icons: [{ src: iconUrl, sizes: "512x512", type: "image/svg+xml", purpose: "any maskable" }]
+      };
+
+      const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+      const link = document.createElement('link');
+      link.rel = 'manifest';
+      link.href = URL.createObjectURL(manifestBlob);
+      document.head.appendChild(link);
+
+      if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+        const swCode = `
+          self.addEventListener('install', e => self.skipWaiting());
+          self.addEventListener('activate', e => self.clients.claim());
+          self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => caches.match(e.request))));
+        `;
+        const swBlob = new Blob([swCode], { type: 'application/javascript' });
+        navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(() => {});
+      }
+
+      let deferredPrompt;
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        const btn = document.getElementById('install-btn');
+        btn.classList.remove('hidden');
+        btn.onclick = async () => {
+          deferredPrompt.prompt();
+          await deferredPrompt.userChoice;
+          btn.classList.add('hidden');
+        };
+      });
+    })();
+
+    // =========================================================
+    // 2. 4-TO-4 SHIFT ROTATION CYCLES
+    // =========================================================
+    const SHIFT_PATTERNS = {
+      // DuPont 28-Day: 4D, 3O, 3N, 1O, 3D, 3O, 4N, 7O
+      DUPONT: [
+        'DAY','DAY','DAY','DAY',
+        'OFF','OFF','OFF',
+        'NIGHT','NIGHT','NIGHT',
+        'OFF',
+        'DAY','DAY','DAY',
+        'OFF','OFF','OFF',
+        'NIGHT','NIGHT','NIGHT','NIGHT',
+        'OFF','OFF','OFF','OFF','OFF','OFF','OFF'
+      ],
+      // 4-On / 4-Off Rotating (16-Day loop: 4D, 4O, 4N, 4O)
+      FOUR_FOUR: [
+        'DAY','DAY','DAY','DAY',
+        'OFF','OFF','OFF','OFF',
+        'NIGHT','NIGHT','NIGHT','NIGHT',
+        'OFF','OFF','OFF','OFF'
+      ],
+      // 2-2-3 Pitman (28-Day flip: 2 weeks Days, 2 weeks Nights)
+      PITMAN: [
+        'DAY','DAY','OFF','OFF','DAY','DAY','DAY',
+        'OFF','OFF','DAY','DAY','OFF','OFF','OFF',
+        'NIGHT','NIGHT','OFF','OFF','NIGHT','NIGHT','NIGHT',
+        'OFF','OFF','NIGHT','NIGHT','OFF','OFF','OFF'
+      ]
+    };
+
+    const SHIFT_META = {
+      DAY: {
+        label: "04:00 – 16:00 (Day Shift)",
+        short: "04-16 DAY",
+        desc: "Wake at 02:45 • Handover at 04:00 • Post-Shift Workout 16:45 • Sleep Lock 19:30",
+        pill: "border-amber-500/50 bg-amber-950/50 text-amber-300"
+      },
+      NIGHT: {
+        label: "16:00 – 04:00 (Night Shift)",
+        short: "16-04 NIGHT",
+        desc
