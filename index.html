@@ -277,40 +277,40 @@
 
   </main>
 
-  <!-- BOTTOM ANDROID NAVIGATION BAR -->
-  <nav class="fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-md border-t border-slate-800 px-2 py-2">
-    <div class="max-w-md mx-auto grid grid-cols-4 gap-1">
-      <button onclick="switchTab('hud')" id="nav-hud" class="py-2 rounded-lg font-mono text-[11px] font-bold text-cyan-400 bg-slate-900">
+  <!-- BOTTOM ANDROID NAVIGATION BAR (With Fold 7 Safe-Area Padding) -->
+  <nav class="fixed bottom-0 left-0 right-0 z-50 bg-slate-950/95 backdrop-blur-md border-t border-slate-800 px-2 pt-2 pb-5">
+    <div class="max-w-md mx-auto grid grid-cols-4 gap-1.5">
+      <button type="button" data-tab="hud" id="nav-hud" class="nav-tab-btn py-2.5 rounded-lg font-mono text-xs font-bold text-cyan-400 bg-slate-900 border border-cyan-500/40 active:scale-95 transition">
         HUD
       </button>
-      <button onclick="switchTab('calendar')" id="nav-calendar" class="py-2 rounded-lg font-mono text-[11px] text-slate-400">
+      <button type="button" data-tab="calendar" id="nav-calendar" class="nav-tab-btn py-2.5 rounded-lg font-mono text-xs text-slate-400 border border-transparent active:scale-95 transition">
         4-4 Sched
       </button>
-      <button onclick="switchTab('govee')" id="nav-govee" class="py-2 rounded-lg font-mono text-[11px] text-slate-400">
+      <button type="button" data-tab="govee" id="nav-govee" class="nav-tab-btn py-2.5 rounded-lg font-mono text-xs text-slate-400 border border-transparent active:scale-95 transition">
         Govee
       </button>
-      <button onclick="switchTab('setup')" id="nav-setup" class="py-2 rounded-lg font-mono text-[11px] text-slate-400">
+      <button type="button" data-tab="setup" id="nav-setup" class="nav-tab-btn py-2.5 rounded-lg font-mono text-xs text-slate-400 border border-transparent active:scale-95 transition">
         Setup/API
       </button>
     </div>
   </nav>
 
   <script>
-        // =========================================================
-    // 1. PWA SERVICE WORKER & INSTALL PROMPT FOR ANDROID
     // =========================================================
-    (function setupPWA() {
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js').catch(err => console.warn('SW fail:', err));
-        });
-      }
+    // 1. PWA SERVICE WORKER & INSTALL PROMPT
+    // =========================================================
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(err => console.warn('SW:', err));
+      });
+    }
 
-      let deferredPrompt;
-      window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-        const btn = document.getElementById('install-btn');
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      const btn = document.getElementById('install-btn');
+      if (btn) {
         btn.classList.remove('hidden');
         btn.onclick = async () => {
           deferredPrompt.prompt();
@@ -318,13 +318,13 @@
           deferredPrompt = null;
           btn.classList.add('hidden');
         };
-      });
-    })();
+      }
+    });
+
     // =========================================================
     // 2. 4-TO-4 SHIFT ROTATION CYCLES
     // =========================================================
     const SHIFT_PATTERNS = {
-      // DuPont 28-Day: 4D, 3O, 3N, 1O, 3D, 3O, 4N, 7O
       DUPONT: [
         'DAY','DAY','DAY','DAY',
         'OFF','OFF','OFF',
@@ -335,14 +335,12 @@
         'NIGHT','NIGHT','NIGHT','NIGHT',
         'OFF','OFF','OFF','OFF','OFF','OFF','OFF'
       ],
-      // 4-On / 4-Off Rotating (16-Day loop: 4D, 4O, 4N, 4O)
       FOUR_FOUR: [
         'DAY','DAY','DAY','DAY',
         'OFF','OFF','OFF','OFF',
         'NIGHT','NIGHT','NIGHT','NIGHT',
         'OFF','OFF','OFF','OFF'
       ],
-      // 2-2-3 Pitman (28-Day flip: 2 weeks Days, 2 weeks Nights)
       PITMAN: [
         'DAY','DAY','OFF','OFF','DAY','DAY','DAY',
         'OFF','OFF','DAY','DAY','OFF','OFF','OFF',
@@ -361,4 +359,323 @@
       NIGHT: {
         label: "16:00 – 04:00 (Night Shift)",
         short: "16-04 NIGHT",
-        desc
+        desc: "Clock-in 16:00 • Caffeine Cutoff 22:00 • Relief 04:00 • Sleep Lock 05:00–13:30",
+        pill: "border-cyan-500/50 bg-cyan-950/50 text-cyan-300"
+      },
+      ERT: {
+        label: "16:00 – 04:00 (Night / ERT High-Load)",
+        short: "16-04 ERT",
+        desc: "High Autonomic Strain • Zero Heavy Lifts • Compex TENS/Endorphinic Post-Shift",
+        pill: "border-rose-500/50 bg-rose-950/50 text-rose-300"
+      },
+      OFF: {
+        label: "Off-Rotation (Recovery / Transition)",
+        short: "OFF SHIFT",
+        desc: "Autonomic Rebound • Full 40lb Dumbbell & Postural Split • Circadian Reset",
+        pill: "border-emerald-500/50 bg-emerald-950/50 text-emerald-300"
+      }
+    };
+
+    function getShiftForDate(patternKey, anchorStr, targetStr) {
+      const pattern = SHIFT_PATTERNS[patternKey] || SHIFT_PATTERNS.DUPONT;
+      const anchor = new Date((anchorStr || "2026-11-02") + "T00:00:00");
+      const target = new Date((targetStr || "2026-11-06") + "T00:00:00");
+      const diffDays = Math.round((target - anchor) / (1000 * 60 * 60 * 24));
+      const len = pattern.length;
+      const index = ((diffDays % len) + len) % len;
+      return { code: pattern[index], cycleDay: index + 1, totalDays: len };
+    }
+
+    // =========================================================
+    // 3. LOCAL ENGINE & PRESETS (4-TO-4 ANCHORED)
+    // =========================================================
+    function computeLocalRecoveryPlan(sleep, hrv, rhr, shiftCode) {
+      let readiness = "Moderate";
+      if (sleep >= 78 && hrv >= -4) readiness = "High";
+      else if (sleep < 65 || hrv <= -12 || rhr >= 67 || shiftCode === 'ERT') readiness = "Low";
+
+      if (shiftCode === 'NIGHT' || shiftCode === 'ERT') {
+        return {
+          readinessLevel: readiness,
+          cShiftStrategy: readiness === "Low"
+            ? "Coming off the 04:00 handover with suppressed HRV (" + hrv + "%). Lock down blackout curtains by 05:00 sharp. Hard caffeine cutoff at 22:00 tonight so stimulants clear before tomorrow's 04:00 relief."
+            : "Night rotation baseline stable for 16:00–04:00. Hydrate with electrolytes at 15:00, cap last coffee at 22:30, and wear blue-light blockers if checking screens after 04:00 clock-out.",
+          workoutAdjustment: readiness === "Low"
+            ? "Skip heavy 40 lb dumbbell presses today. Run a 20-min Compex Wireless 2.0 'Active Recovery' or 'Capillarization' cycle on quads/lower back before 05:00 sleep, plus 2 sets of supine chin tucks & Y-raises at 14:30."
+            : "14:30 pre-shift session cleared: 30 mins moderate 40 lb dumbbells, glute bridges, weighted crunches, and Y-raises for upper back stability.",
+          mealTimings: [
+            "04:30 — Post-shift fast-digesting whey shake or light snack before 05:00 sleep (avoid heavy fats)",
+            "14:00 — Wake-up anchor meal: High protein + complex carbs before 16:00 clock-in",
+            "20:30 — Mid-shift plant meal: Lean protein, greens, slow-digesting carbs",
+            "00:30 — Final light fuel window: Greek yogurt, berries, or nuts (zero heavy digestion after 01:00)"
+          ]
+        };
+      }
+
+      if (shiftCode === 'DAY') {
+        return {
+          readinessLevel: readiness,
+          cShiftStrategy: readiness === "Low"
+            ? "02:45 wake-up with elevated fatigue. Delay first caffeine until 04:30 after shift handover to prevent a 13:00 cortisol crash. Fire Govee red wind-down at 19:00 for a 19:30 sleep target."
+            : "Strong autonomic readiness for the 04:00–16:00 day hitch. Pace hydration across the morning and lock down sleep by 19:30.",
+          workoutAdjustment: readiness === "Low"
+            ? "Keep post-shift training light at 16:30: Resistance bands, supine chin tucks, Y-raises, and a 20-min Compex EMS 'Relaxing Massage' cycle."
+            : "Cleared for a 35-min post-shift session at 16:45: 40 lb dumbbell compound sets, glute bridges, weighted crunches, and Compex 'Strength' or 'Hypertrophy' mode.",
+          mealTimings: [
+            "03:15 — Pre-shift primer: Eggs or protein shake + electrolytes before the 04:00 clock-in",
+            "08:30 — Morning plant meal: High-protein wrap or breakfast bowl",
+            "12:30 — Afternoon plant lunch: Balanced protein and slow carbs to carry through 16:00",
+            "17:30 — Post-workout dinner at home: High protein + veggies (finish eating by 18:15 for 19:30 sleep)"
+          ]
+        };
+      }
+
+      return {
+        readinessLevel: readiness,
+        cShiftStrategy: "Off-rotation recovery day. Anchor your circadian rhythm with natural morning sunlight, garden work, and steady hydration.",
+        workoutAdjustment: readiness === "Low"
+          ? "Active recovery day: Mobility work, supine chin tucks, Y-raises, and Compex 'Capillarization' program."
+          : "Green light for full-intensity 40 lb dumbbell hypertrophy workout, resistance band burnouts, glute bridges, weighted crunches, and Compex 'Resistance' program.",
+        mealTimings: [
+          "08:00 — High-protein breakfast + hydration",
+          "12:30 — Pre-training lunch: Lean protein and complex carbs",
+          "16:00 — Post-workout recovery meal or shake",
+          "19:30 — Evening dinner (3-hour buffer before sleep)"
+        ]
+      };
+    }
+
+    // =========================================================
+    // 4. TAB SWITCHING & UI RENDERING (GLOBAL + EVENT LISTENERS)
+    // =========================================================
+    window.switchTab = function(tab) {
+      ['hud', 'calendar', 'govee', 'setup'].forEach(t => {
+        const sec = document.getElementById('tab-' + t);
+        const btn = document.getElementById('nav-' + t);
+        if (sec) sec.classList.toggle('hidden', t !== tab);
+        if (btn) {
+          if (t === tab) {
+            btn.className = "nav-tab-btn py-2.5 rounded-lg font-mono text-xs font-bold text-cyan-400 bg-slate-900 border border-cyan-500/40 active:scale-95 transition";
+          } else {
+            btn.className = "nav-tab-btn py-2.5 rounded-lg font-mono text-xs text-slate-400 border border-transparent active:scale-95 transition";
+          }
+        }
+      });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    function getActiveShiftCode() {
+      const override = document.getElementById('input-shift-override').value;
+      if (override !== 'AUTO') return override;
+      const pattern = document.getElementById('cal-pattern').value;
+      const anchor = document.getElementById('cal-anchor').value;
+      const target = document.getElementById('cal-target').value;
+      return getShiftForDate(pattern, anchor, target).code;
+    }
+
+    function renderPlan(plan, shiftCode) {
+      const meta = SHIFT_META[shiftCode] || SHIFT_META.NIGHT;
+      document.getElementById('plan-shift-label').textContent = meta.label;
+
+      const badge = document.getElementById('plan-readiness-badge');
+      badge.textContent = "Readiness: " + plan.readinessLevel;
+      if (plan.readinessLevel === 'High') {
+        badge.className = "px-3.5 py-1 rounded-full border font-mono text-xs font-bold uppercase tracking-widest text-emerald-400 border-emerald-500/60 bg-emerald-950/40";
+      } else if (plan.readinessLevel === 'Moderate') {
+        badge.className = "px-3.5 py-1 rounded-full border font-mono text-xs font-bold uppercase tracking-widest text-amber-400 border-amber-500/60 bg-amber-950/40";
+      } else {
+        badge.className = "px-3.5 py-1 rounded-full border font-mono text-xs font-bold uppercase tracking-widest text-rose-400 border-rose-500/60 bg-rose-950/40";
+      }
+
+      document.getElementById('plan-strategy').textContent = plan.cShiftStrategy;
+      document.getElementById('plan-workout').textContent = plan.workoutAdjustment;
+
+      const mealsList = document.getElementById('plan-meals');
+      mealsList.innerHTML = '';
+      (plan.mealTimings || []).forEach((m, i) => {
+        const li = document.createElement('li');
+        li.className = "flex items-start";
+        li.innerHTML = `<span class="text-emerald-400 font-mono font-bold mr-3">0${i + 1}</span><span>${m}</span>`;
+        mealsList.appendChild(li);
+      });
+    }
+
+    window.updateSliders = function() {
+      const sleep = parseInt(document.getElementById('input-sleep').value, 10);
+      const hrv = parseInt(document.getElementById('input-hrv').value, 10);
+      const rhr = parseInt(document.getElementById('input-rhr').value, 10);
+
+      document.getElementById('val-sleep').textContent = sleep + " / 100";
+      const hrvEl = document.getElementById('val-hrv');
+      hrvEl.textContent = (hrv > 0 ? "+" : "") + hrv + "%";
+      hrvEl.className = hrv < 0 ? "text-rose-400 font-bold" : "text-emerald-400 font-bold";
+      document.getElementById('val-rhr').textContent = rhr + " BPM";
+
+      const shiftCode = getActiveShiftCode();
+      const meta = SHIFT_META[shiftCode];
+      const pill = document.getElementById('active-shift-pill');
+      pill.textContent = meta.short;
+      pill.className = "px-3 py-1 rounded-full border text-xs font-mono font-bold uppercase tracking-wider " + meta.pill;
+
+      const plan = computeLocalRecoveryPlan(sleep, hrv, rhr, shiftCode);
+      renderPlan(plan, shiftCode);
+    };
+
+    window.applyPreset = function(name) {
+      if (name === 'nightFatigue') {
+        document.getElementById('input-sleep').value = 61;
+        document.getElementById('input-hrv').value = -16;
+        document.getElementById('input-rhr').value = 68;
+        document.getElementById('input-shift-override').value = 'NIGHT';
+      } else if (name === 'dayGrind') {
+        document.getElementById('input-sleep').value = 74;
+        document.getElementById('input-hrv').value = -5;
+        document.getElementById('input-rhr').value = 60;
+        document.getElementById('input-shift-override').value = 'DAY';
+      } else if (name === 'offPeak') {
+        document.getElementById('input-sleep').value = 88;
+        document.getElementById('input-hrv').value = 8;
+        document.getElementById('input-rhr').value = 54;
+        document.getElementById('input-shift-override').value = 'OFF';
+      }
+      window.updateSliders();
+    };
+
+    window.saveCalendarConfig = function() {
+      const pattern = document.getElementById('cal-pattern').value;
+      const anchor = document.getElementById('cal-anchor').value;
+      const target = document.getElementById('cal-target').value;
+
+      localStorage.setItem('ch_pattern', pattern);
+      localStorage.setItem('ch_anchor', anchor);
+
+      const info = getShiftForDate(pattern, anchor, target);
+      const meta = SHIFT_META[info.code];
+
+      document.getElementById('detected-shift-title').textContent =
+        `${target} • ${meta.label} (Cycle Day ${info.cycleDay}/${info.totalDays})`;
+      document.getElementById('detected-shift-desc').textContent = meta.desc;
+
+      const grid = document.getElementById('calendar-grid');
+      grid.innerHTML = '';
+      const start = new Date(target + "T00:00:00");
+      for (let i = 0; i < 14; i++) {
+        const d = new Date(start);
+        d.setDate(start.getDate() + i);
+        const iso = d.toISOString().slice(0, 10);
+        const dayInfo = getShiftForDate(pattern, anchor, iso);
+        const dayMeta = SHIFT_META[dayInfo.code];
+        const card = document.createElement('div');
+        card.className = "p-2.5 rounded-lg border bg-slate-950 flex flex-col justify-between " + dayMeta.pill;
+        card.innerHTML = `
+          <div class="text-[10px] font-mono opacity-80">${d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
+          <div class="text-xs font-mono font-bold mt-1">${dayMeta.short}</div>
+          <div class="text-[10px] font-mono opacity-70 mt-0.5">Day ${dayInfo.cycleDay}</div>
+        `;
+        grid.appendChild(card);
+      }
+
+      window.updateSliders();
+    };
+
+    window.syncWithGemini = async function() {
+      const apiKey = localStorage.getItem('ch_gemini_key') || '';
+      const statusEl = document.getElementById('sync-status');
+      const sleep = document.getElementById('input-sleep').value;
+      const hrv = document.getElementById('input-hrv').value;
+      const rhr = document.getElementById('input-rhr').value;
+      const shiftCode = getActiveShiftCode();
+      const meta = SHIFT_META[shiftCode];
+
+      if (!apiKey) {
+        statusEl.textContent = "Local 4-to-4 Engine Active (Add Gemini API Key in Setup/API tab for live cloud AI).";
+        window.updateSliders();
+        return;
+      }
+
+      statusEl.textContent = "Calling Gemini 2.5 Flash API...";
+      try {
+        const prompt = `
+          You are the biometric recovery engine for ChronoHume.
+          The user is a C-Shift Plant Operator & ERT Captain whose 12-hour shifts run strictly from 4 to 4:
+          - Day Shift: 04:00 to 16:00 (wakes ~02:45, sleep target ~19:30)
+          - Night Shift: 16:00 to 04:00 (sleeps ~05:00 to 13:30, wakes ~14:00)
+          Active Shift Today: ${meta.label}
+          Biometrics: Sleep Score ${sleep}/100, HRV Deviation ${hrv}%, Resting HR ${rhr} BPM.
+          Equipment owned: Dumbbells up to 40 lbs, resistance bands, Compex Wireless 2.0 EMS kit, executes supine chin tucks and Y-raises.
+          Return strictly valid JSON with keys: readinessLevel ("Low", "Moderate", or "High"), workoutAdjustment (string), mealTimings (array of 4 timestamped strings anchored to 04:00-16:00 or 16:00-04:00), cShiftStrategy (string).
+        `;
+
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: "application/json" }
+          })
+        });
+
+        const data = await res.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text) throw new Error("Invalid API response");
+        const parsed = JSON.parse(text);
+        renderPlan(parsed, shiftCode);
+        statusEl.textContent = "Synced with Gemini 2.5 Flash (" + new Date().toLocaleTimeString() + ")";
+      } catch (err) {
+        statusEl.textContent = "API Error (fell back to local 4-to-4 engine): " + err.message;
+        window.updateSliders();
+      }
+    };
+
+    window.triggerGovee = async function(eventName) {
+      const key = localStorage.getItem('ch_ifttt_key') || '';
+      const log = document.getElementById('govee-log');
+      const shiftCode = getActiveShiftCode();
+
+      if (!key) {
+        log.textContent = `[SIMULATED] POST https://maker.ifttt.com/trigger/${eventName}/with/key/YOUR_KEY (Save your IFTTT key in Setup to fire live)`;
+        return;
+      }
+
+      log.textContent = `Firing ${eventName} to IFTTT...`;
+      try {
+        await fetch(`https://maker.ifttt.com/trigger/${eventName}/with/key/${key}`, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ value1: shiftCode, value2: new Date().toISOString() })
+        });
+        log.textContent = `Triggered ${eventName} at ${new Date().toLocaleTimeString()}!`;
+      } catch (e) {
+        log.textContent = `Webhook error: ${e.message}`;
+      }
+    };
+
+    window.saveApiKeys = function() {
+      localStorage.setItem('ch_gemini_key', document.getElementById('cfg-gemini-key').value.trim());
+      localStorage.setItem('ch_ifttt_key', document.getElementById('cfg-ifttt-key').value.trim());
+      document.getElementById('key-save-msg').textContent = "Saved to device!";
+      setTimeout(() => document.getElementById('key-save-msg').textContent = "", 3000);
+    };
+
+    // Initialize Tabs & State
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('.nav-tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const tab = btn.getAttribute('data-tab');
+          if (tab) window.switchTab(tab);
+        });
+      });
+
+      const todayIso = new Date().toISOString().slice(0, 10);
+      document.getElementById('cal-pattern').value = localStorage.getItem('ch_pattern') || 'DUPONT';
+      document.getElementById('cal-anchor').value = localStorage.getItem('ch_anchor') || '2026-11-02';
+      document.getElementById('cal-target').value = todayIso;
+      document.getElementById('cfg-gemini-key').value = localStorage.getItem('ch_gemini_key') || '';
+      document.getElementById('cfg-ifttt-key').value = localStorage.getItem('ch_ifttt_key') || '';
+      window.saveCalendarConfig();
+    });
+  </script>
+</body>
+</html>
+
