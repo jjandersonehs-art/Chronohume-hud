@@ -22,7 +22,6 @@
   <script>
     // =========================================================
     // EXACT 28-DAY C-SHIFT ROTATION (ANCHORED TO FRI NOV 6, 2026)
-    // Sequence starting Fri Day 1:
     // 3D (Fri-Sun) | 1O (Mon Flip) | 3N (Tue-Thu) | 3O (Fri-Sun) |
     // 4D (Mon-Thu) | 7O (Fri-Thu Long Break) | 4N (Fri-Mon) | 3O (Tue-Thu)
     // =========================================================
@@ -130,7 +129,6 @@
       window.location.reload(true);
     };
 
-    // Default Anchor = Friday, Nov 6, 2026 (Day 1 of 3-Day Fri-Sat-Sun hitch)
     function getCycleDayInfo(anchorStr, targetStr) {
       var anchor = new Date((anchorStr || "2026-11-06") + "T00:00:00");
       var target = new Date((targetStr || "2026-11-06") + "T00:00:00");
@@ -313,7 +311,7 @@
       var target = document.getElementById('cal-target')?.value || '2026-11-06';
 
       try {
-        localStorage.setItem('ch_anchor_v26', anchor);
+        localStorage.setItem('ch_anchor_v27', anchor);
       } catch (e) {}
 
       var info = getCycleDayInfo(anchor, target);
@@ -324,7 +322,6 @@
       var descEl = document.getElementById('detected-shift-desc');
       if (descEl) descEl.textContent = info.note;
 
-      // Render Full 28-Day Lookahead Grid so you can see the whole rotation
       var grid = document.getElementById('calendar-grid');
       if (grid) {
         grid.innerHTML = '';
@@ -347,8 +344,11 @@
       window.updateSliders();
     };
 
+    // =========================================================
+    // DUAL-SURFACE GEMINI SYNC (SUPPORTS AQ. & AIza KEYS)
+    // =========================================================
     window.syncWithGemini = async function() {
-      var apiKey = localStorage.getItem('ch_gemini_key') || '';
+      var apiKey = (localStorage.getItem('ch_gemini_key') || '').trim();
       var statusEl = document.getElementById('sync-status');
       var sleep = document.getElementById('input-sleep').value;
       var hrv = document.getElementById('input-hrv').value;
@@ -357,27 +357,50 @@
       var meta = SHIFT_META[shiftData.code] || SHIFT_META.DAY;
 
       if (!apiKey) {
-        if (statusEl) statusEl.textContent = "Local C-Shift Engine Active (Add Gemini Key in Setup/API tab for cloud AI).";
+        if (statusEl) statusEl.textContent = "Local C-Shift Engine Active (Add AQ. or AIza Gemini Key in Setup/API tab for cloud AI).";
         window.updateSliders();
         return;
       }
 
-      if (statusEl) statusEl.textContent = "Calling Gemini 2.5 Flash API...";
-      try {
-        var prompt = "You are the biometric recovery engine for ChronoHume. User is a C-Shift Plant Operator & ERT Captain on a 28-day cycle (3 Days 04:00-16:00, 1 Off Quick Flip, 3 Nights 16:00-04:00, 3 Off, 4 Days 04:00-16:00, 7 Off, 4 Nights 16:00-04:00, 3 Off). Today's status: " + shiftData.blockLabel + " (" + meta.label + " — " + shiftData.note + "). Biometrics: Sleep Score " + sleep + "/100, HRV Deviation " + hrv + "%, Resting HR " + rhr + " BPM. Equipment: 40lb dumbbells, resistance bands, Compex Wireless 2.0 EMS, supine chin tucks, Y-raises. Return strictly valid JSON with keys: readinessLevel (Low, Moderate, or High), workoutAdjustment (string), mealTimings (array of 4 timestamped strings anchored to 04:00-16:00 or 16:00-04:00), cShiftStrategy (string).";
+      if (statusEl) statusEl.textContent = "Syncing Key with Gemini 2.5 Flash...";
+      var prompt = "You are the biometric recovery engine for ChronoHume. User is a C-Shift Plant Operator & ERT Captain on a 28-day cycle (3 Days 04:00-16:00, 1 Off Quick Flip, 3 Nights 16:00-04:00, 3 Off, 4 Days 04:00-16:00, 7 Off, 4 Nights 16:00-04:00, 3 Off). Today's status: " + shiftData.blockLabel + " (" + meta.label + " — " + shiftData.note + "). Biometrics: Sleep Score " + sleep + "/100, HRV Deviation " + hrv + "%, Resting HR " + rhr + " BPM. Equipment: 40lb dumbbells, resistance bands, Compex Wireless 2.0 EMS, supine chin tucks, Y-raises. Return ONLY valid JSON with keys: readinessLevel (Low, Moderate, or High), workoutAdjustment (string), mealTimings (array of 4 timestamped strings anchored to 04:00-16:00 or 16:00-04:00), cShiftStrategy (string).";
 
-        var res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey, {
+      var payload = JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json" }
+      });
+
+      try {
+        // 1. Primary call via x-goog-api-key header (supports AQ. and AIza keys)
+        var res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent", {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: "application/json" }
-          })
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey
+          },
+          body: payload
         });
+
+        // 2. Fallback to Vertex AI Express endpoint if the AQ. key is bound to a Cloud Express project
+        if (res.status === 401 || res.status === 403) {
+          res = await fetch("https://aiplatform.googleapis.com/v1beta1/publishers/google/models/gemini-2.5-flash:generateContent?key=" + encodeURIComponent(apiKey), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: payload
+          });
+        }
+
         var data = await res.json();
-        var text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!text) throw new Error("Invalid API response");
-        renderPlan(JSON.parse(text), shiftData);
+        if (!res.ok || data.error) {
+          throw new Error(data.error?.message || ("HTTP " + res.status));
+        }
+
+        var rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!rawText) throw new Error("Empty response from model");
+
+        var cleanJson = rawText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '').trim();
+        renderPlan(JSON.parse(cleanJson), shiftData);
+
         if (statusEl) statusEl.textContent = "Synced with Gemini 2.5 Flash (" + new Date().toLocaleTimeString() + ")";
       } catch (err) {
         if (statusEl) statusEl.textContent = "API Error (using local engine): " + err.message;
@@ -390,12 +413,12 @@
       var log = document.getElementById('govee-log');
       var shiftData = getActiveShiftData();
       if (!key) {
-        if (log) log.textContent = "[SIMULATED] POST https://maker.ifttt.com/trigger/" + eventName + "/with/key/YOUR_KEY (Add IFTTT key in Setup/API)";
+        if (log) log.textContent = "[SIMULATED] POST [https://maker.ifttt.com/trigger/](https://maker.ifttt.com/trigger/)" + eventName + "/with/key/YOUR_KEY (Add IFTTT key in Setup/API)";
         return;
       }
       if (log) log.textContent = "Firing " + eventName + " to IFTTT...";
       try {
-        await fetch("https://maker.ifttt.com/trigger/" + eventName + "/with/key/" + key, {
+        await fetch("[https://maker.ifttt.com/trigger/](https://maker.ifttt.com/trigger/)" + eventName + "/with/key/" + key, {
           method: 'POST',
           mode: 'no-cors',
           headers: { 'Content-Type': 'application/json' },
@@ -421,7 +444,7 @@
 
     window.addEventListener('DOMContentLoaded', function() {
       try {
-        document.getElementById('cal-anchor').value = localStorage.getItem('ch_anchor_v26') || '2026-11-06';
+        document.getElementById('cal-anchor').value = localStorage.getItem('ch_anchor_v27') || '2026-11-06';
         document.getElementById('cal-target').value = new Date().toISOString().slice(0, 10);
         document.getElementById('cfg-gemini-key').value = localStorage.getItem('ch_gemini_key') || '';
         document.getElementById('cfg-ifttt-key').value = localStorage.getItem('ch_ifttt_key') || '';
@@ -443,7 +466,7 @@
           </h1>
         </div>
         <p class="text-[10px] text-slate-400 font-mono mt-0.5">
-          C-SHIFT 28-DAY ENGINE • 04:00–16:00 / 16:00–04:00 (v2.6)
+          C-SHIFT 28-DAY ENGINE • 04:00–16:00 / 16:00–04:00 (v2.7)
         </p>
       </div>
       <div class="flex items-center gap-2">
@@ -645,8 +668,8 @@
         </h2>
         <div class="space-y-3">
           <div>
-            <label class="block text-xs font-mono text-slate-400 mb-1">GEMINI API KEY (Google AI Studio)</label>
-            <input id="cfg-gemini-key" type="password" placeholder="AIzaSy..." class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-xs font-mono text-cyan-300" />
+            <label class="block text-xs font-mono text-slate-400 mb-1">GEMINI API KEY (Supports AQ. or AIza...)</label>
+            <input id="cfg-gemini-key" type="password" placeholder="AQ... or AIzaSy..." class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-xs font-mono text-cyan-300" />
           </div>
           <div>
             <label class="block text-xs font-mono text-slate-400 mb-1">IFTTT WEBHOOK KEY (Maker Webhooks)</label>
