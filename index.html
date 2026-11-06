@@ -311,7 +311,7 @@
       var target = document.getElementById('cal-target')?.value || '2026-11-06';
 
       try {
-        localStorage.setItem('ch_anchor_v27', anchor);
+        localStorage.setItem('ch_anchor_v28', anchor);
       } catch (e) {}
 
       var info = getCycleDayInfo(anchor, target);
@@ -345,10 +345,11 @@
     };
 
     // =========================================================
-    // DUAL-SURFACE GEMINI SYNC (SUPPORTS AQ. & AIza KEYS)
+    // GEMINI 3.8 FLASH ENGINE (SUPPORTS AQ. & AIza KEYS)
     // =========================================================
     window.syncWithGemini = async function() {
       var apiKey = (localStorage.getItem('ch_gemini_key') || '').trim();
+      var selectedModel = localStorage.getItem('ch_gemini_model') || 'gemini-3.8-flash';
       var statusEl = document.getElementById('sync-status');
       var sleep = document.getElementById('input-sleep').value;
       var hrv = document.getElementById('input-hrv').value;
@@ -357,12 +358,12 @@
       var meta = SHIFT_META[shiftData.code] || SHIFT_META.DAY;
 
       if (!apiKey) {
-        if (statusEl) statusEl.textContent = "Local C-Shift Engine Active (Add AQ. or AIza Gemini Key in Setup/API tab for cloud AI).";
+        if (statusEl) statusEl.textContent = "Local C-Shift Engine Active (Add AQ. Key in Setup/API tab for Gemini 3.8 Flash).";
         window.updateSliders();
         return;
       }
 
-      if (statusEl) statusEl.textContent = "Syncing Key with Gemini 2.5 Flash...";
+      if (statusEl) statusEl.textContent = "Syncing with " + selectedModel + "...";
       var prompt = "You are the biometric recovery engine for ChronoHume. User is a C-Shift Plant Operator & ERT Captain on a 28-day cycle (3 Days 04:00-16:00, 1 Off Quick Flip, 3 Nights 16:00-04:00, 3 Off, 4 Days 04:00-16:00, 7 Off, 4 Nights 16:00-04:00, 3 Off). Today's status: " + shiftData.blockLabel + " (" + meta.label + " — " + shiftData.note + "). Biometrics: Sleep Score " + sleep + "/100, HRV Deviation " + hrv + "%, Resting HR " + rhr + " BPM. Equipment: 40lb dumbbells, resistance bands, Compex Wireless 2.0 EMS, supine chin tucks, Y-raises. Return ONLY valid JSON with keys: readinessLevel (Low, Moderate, or High), workoutAdjustment (string), mealTimings (array of 4 timestamped strings anchored to 04:00-16:00 or 16:00-04:00), cShiftStrategy (string).";
 
       var payload = JSON.stringify({
@@ -370,42 +371,59 @@
         generationConfig: { responseMimeType: "application/json" }
       });
 
-      try {
-        // 1. Primary call via x-goog-api-key header (supports AQ. and AIza keys)
-        var res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent", {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-goog-api-key': apiKey
-          },
-          body: payload
-        });
+      // Try selected model first (gemini-3.8-flash), with automatic fallback to 3.5-flash-lite if needed
+      var modelsToTry = [selectedModel, 'gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-3-flash-preview'];
+      var uniqueModels = modelsToTry.filter(function(item, pos) { return modelsToTry.indexOf(item) === pos; });
 
-        // 2. Fallback to Vertex AI Express endpoint if the AQ. key is bound to a Cloud Express project
-        if (res.status === 401 || res.status === 403) {
-          res = await fetch("https://aiplatform.googleapis.com/v1beta1/publishers/google/models/gemini-2.5-flash:generateContent?key=" + encodeURIComponent(apiKey), {
+      var lastError = "";
+      for (var m = 0; m < uniqueModels.length; m++) {
+        var modelId = uniqueModels[m];
+        try {
+          // 1. Primary call via AI Studio v1beta + x-goog-api-key header
+          var res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + modelId + ":generateContent", {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              'x-goog-api-key': apiKey
+            },
             body: payload
           });
+
+          // 2. Fallback to Vertex AI Express surface for AQ. keys bound to Google Cloud Express
+          if (res.status === 401 || res.status === 403 || res.status === 404) {
+            var vertexRes = await fetch("https://aiplatform.googleapis.com/v1beta1/publishers/google/models/" + modelId + ":generateContent?key=" + encodeURIComponent(apiKey), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: payload
+            });
+            if (vertexRes.ok) res = vertexRes;
+          }
+
+          var data = await res.json();
+          if (!res.ok || data.error) {
+            lastError = data.error?.message || ("HTTP " + res.status + " on " + modelId);
+            continue;
+          }
+
+          var parts = data.candidates?.[0]?.content?.parts || [];
+          var rawText = "";
+          for (var p = 0; p < parts.length; p++) {
+            if (parts[p].text) rawText = parts[p].text;
+          }
+          if (!rawText) throw new Error("Empty response from " + modelId);
+
+          var cleanJson = rawText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '').trim();
+          renderPlan(JSON.parse(cleanJson), shiftData);
+
+          if (statusEl) statusEl.textContent = "Synced with " + modelId + " (" + new Date().toLocaleTimeString() + ")";
+          return;
+        } catch (err) {
+          lastError = err.message;
         }
-
-        var data = await res.json();
-        if (!res.ok || data.error) {
-          throw new Error(data.error?.message || ("HTTP " + res.status));
-        }
-
-        var rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!rawText) throw new Error("Empty response from model");
-
-        var cleanJson = rawText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '').trim();
-        renderPlan(JSON.parse(cleanJson), shiftData);
-
-        if (statusEl) statusEl.textContent = "Synced with Gemini 2.5 Flash (" + new Date().toLocaleTimeString() + ")";
-      } catch (err) {
-        if (statusEl) statusEl.textContent = "API Error (using local engine): " + err.message;
-        window.updateSliders();
       }
+
+      if (statusEl) statusEl.textContent = "API Error (using local engine): " + lastError;
+      window.updateSliders();
     };
 
     window.triggerGovee = async function(eventName) {
@@ -433,6 +451,7 @@
     window.saveApiKeys = function() {
       try {
         localStorage.setItem('ch_gemini_key', document.getElementById('cfg-gemini-key').value.trim());
+        localStorage.setItem('ch_gemini_model', document.getElementById('cfg-gemini-model').value);
         localStorage.setItem('ch_ifttt_key', document.getElementById('cfg-ifttt-key').value.trim());
         var msg = document.getElementById('key-save-msg');
         if (msg) {
@@ -444,9 +463,10 @@
 
     window.addEventListener('DOMContentLoaded', function() {
       try {
-        document.getElementById('cal-anchor').value = localStorage.getItem('ch_anchor_v27') || '2026-11-06';
+        document.getElementById('cal-anchor').value = localStorage.getItem('ch_anchor_v28') || '2026-11-06';
         document.getElementById('cal-target').value = new Date().toISOString().slice(0, 10);
         document.getElementById('cfg-gemini-key').value = localStorage.getItem('ch_gemini_key') || '';
+        document.getElementById('cfg-gemini-model').value = localStorage.getItem('ch_gemini_model') || 'gemini-3.8-flash';
         document.getElementById('cfg-ifttt-key').value = localStorage.getItem('ch_ifttt_key') || '';
       } catch (e) {}
       window.saveCalendarConfig();
@@ -466,7 +486,7 @@
           </h1>
         </div>
         <p class="text-[10px] text-slate-400 font-mono mt-0.5">
-          C-SHIFT 28-DAY ENGINE • 04:00–16:00 / 16:00–04:00 (v2.7)
+          GEMINI 3.8 FLASH • 28-DAY C-SHIFT ENGINE (v2.8)
         </p>
       </div>
       <div class="flex items-center gap-2">
@@ -551,7 +571,7 @@
           </div>
 
           <button type="button" onclick="syncWithGemini()" class="w-full py-3 rounded-xl bg-cyan-500 text-slate-950 font-mono font-bold text-xs uppercase tracking-widest">
-            Sync Biometrics with Gemini AI
+            Sync Biometrics with Gemini 3.8
           </button>
           <p id="sync-status" class="text-[11px] font-mono text-center text-slate-400"></p>
         </div>
@@ -560,7 +580,7 @@
         <div class="lg:col-span-2 bg-slate-900/90 border border-slate-800 rounded-xl p-5 space-y-5">
           <div class="flex justify-between items-center border-b border-slate-800 pb-3">
             <div>
-              <span class="text-[10px] font-mono text-slate-400 uppercase tracking-widest">GEMINI RECOVERY PROTOCOL</span>
+              <span class="text-[10px] font-mono text-slate-400 uppercase tracking-widest">GEMINI 3.8 FLASH RECOVERY PROTOCOL</span>
               <h3 id="plan-shift-label" class="text-base md:text-lg font-bold text-white">04:00 – 16:00 (Day Shift) • 3-Day Hitch (1/3)</h3>
             </div>
             <span id="plan-readiness-badge" class="px-3 py-1 rounded-full border font-mono text-xs font-bold uppercase text-amber-400 border-amber-500/60 bg-amber-950/40">
@@ -664,9 +684,17 @@
     <section id="tab-setup" style="display: none;" class="space-y-5">
       <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-5 space-y-4">
         <h2 class="text-base font-bold text-cyan-400 font-mono uppercase tracking-wider">
-          On-Device API Keys (Saved Locally on Phone)
+          On-Device API Keys & Model Config (v2.8)
         </h2>
         <div class="space-y-3">
+          <div>
+            <label class="block text-xs font-mono text-slate-400 mb-1">GEMINI 3.8 MODEL ENDPOINT</label>
+            <select id="cfg-gemini-model" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-xs font-mono text-cyan-300">
+              <option value="gemini-3.8-flash">gemini-3.8-flash (Default AI Studio 3.8)</option>
+              <option value="gemini-3.5-flash-lite">gemini-3.5-flash-lite (High-Speed Fallback)</option>
+              <option value="gemini-3.1-pro-preview">gemini-3.1-pro-preview (Deep Reasoning Pro)</option>
+            </select>
+          </div>
           <div>
             <label class="block text-xs font-mono text-slate-400 mb-1">GEMINI API KEY (Supports AQ. or AIza...)</label>
             <input id="cfg-gemini-key" type="password" placeholder="AQ... or AIzaSy..." class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-xs font-mono text-cyan-300" />
