@@ -21,37 +21,81 @@
 
   <script>
     // =========================================================
-    // CORE LOGIC IN <HEAD> SO TABS & UI ALWAYS WORK IMMEDIATELY
+    // EXACT 28-DAY C-SHIFT ROTATION (ANCHORED TO FRI NOV 6, 2026)
+    // Sequence starting Fri Day 1:
+    // 3D (Fri-Sun) | 1O (Mon Flip) | 3N (Tue-Thu) | 3O (Fri-Sun) |
+    // 4D (Mon-Thu) | 7O (Fri-Thu Long Break) | 4N (Fri-Mon) | 3O (Tue-Thu)
     // =========================================================
-    const SHIFT_PATTERNS = {
-      DUPONT: ['DAY','DAY','DAY','DAY','OFF','OFF','OFF','NIGHT','NIGHT','NIGHT','OFF','DAY','DAY','DAY','OFF','OFF','OFF','NIGHT','NIGHT','NIGHT','NIGHT','OFF','OFF','OFF','OFF','OFF','OFF','OFF'],
-      FOUR_FOUR: ['DAY','DAY','DAY','DAY','OFF','OFF','OFF','OFF','NIGHT','NIGHT','NIGHT','NIGHT','OFF','OFF','OFF','OFF'],
-      PITMAN: ['DAY','DAY','OFF','OFF','DAY','DAY','DAY','OFF','OFF','DAY','DAY','OFF','OFF','OFF','NIGHT','NIGHT','OFF','OFF','NIGHT','NIGHT','NIGHT','OFF','OFF','NIGHT','NIGHT','OFF','OFF','OFF']
-    };
+    const C_SHIFT_28_CYCLE = [
+      // Days 1-3: Fri, Sat, Sun (3 Days: 04:00 - 16:00)
+      { code: 'DAY', blockLabel: '3-Day Hitch (1/3)', note: '04:00–16:00 Day Shift • Sleep Target 19:30' },
+      { code: 'DAY', blockLabel: '3-Day Hitch (2/3)', note: '04:00–16:00 Day Shift • Sleep Target 19:30' },
+      { code: 'DAY', blockLabel: '3-Day Hitch (3/3)', note: 'Final Day Shift • Stay up late tonight to prep for Quick Flip' },
+
+      // Day 4: Mon (1 Day Off - Quick Flip to Nights)
+      { code: 'FLIP', blockLabel: '1-Day Quick Flip (Off)', note: 'Transition Day • Nap 13:00–16:00 so you can anchor Night Shift tomorrow' },
+
+      // Days 5-7: Tue, Wed, Thu (3 Nights: 16:00 - 04:00)
+      { code: 'NIGHT', blockLabel: '3-Night Hitch (1/3)', note: '16:00–04:00 Night Shift • Hard Caffeine Cutoff 22:00' },
+      { code: 'NIGHT', blockLabel: '3-Night Hitch (2/3)', note: '16:00–04:00 Night Shift • Lock Blackout Sleep 05:00–13:30' },
+      { code: 'NIGHT', blockLabel: '3-Night Hitch (3/3)', note: 'Final Night Shift • Anchor 4-hr recovery sleep 05:00–09:30 to flip back to days' },
+
+      // Days 8-10: Fri, Sat, Sun (3 Days Off)
+      { code: 'OFF', blockLabel: '3-Day Weekend Off (1/3)', note: 'Post-Night Transition • Light mobility & morning sunlight' },
+      { code: 'OFF', blockLabel: '3-Day Weekend Off (2/3)', note: 'Full Off-Rotation Recovery • Green light for 40lb Dumbbell Split' },
+      { code: 'OFF', blockLabel: '3-Day Weekend Off (3/3)', note: 'Pre-Day Hitch • Wind down by 19:30 tonight for 02:45 wake-up Monday' },
+
+      // Days 11-14: Mon, Tue, Wed, Thu (4 Days: 04:00 - 16:00)
+      { code: 'DAY', blockLabel: '4-Day Hitch (1/4)', note: '04:00–16:00 Day Shift • Delay first caffeine until 04:30' },
+      { code: 'DAY', blockLabel: '4-Day Hitch (2/4)', note: '04:00–16:00 Day Shift • Post-shift workout window 16:45' },
+      { code: 'DAY', blockLabel: '4-Day Hitch (3/4)', note: '04:00–16:00 Day Shift • Prioritize Compex recovery & early dinner' },
+      { code: 'DAY', blockLabel: '4-Day Hitch (4/4)', note: 'Final Day Shift before 7-Day Long Break!' },
+
+      // Days 15-21: Fri - Thu (7 Days Off - Long Break)
+      { code: 'OFF', blockLabel: '7-Day Long Break (1/7)', note: 'Long Change Day 1 • Autonomic Decompression' },
+      { code: 'OFF', blockLabel: '7-Day Long Break (2/7)', note: 'Long Change Day 2 • Peak Hypertrophy & Conditioning Window' },
+      { code: 'OFF', blockLabel: '7-Day Long Break (3/7)', note: 'Long Change Day 3 • Normal Circadian Schedule' },
+      { code: 'OFF', blockLabel: '7-Day Long Break (4/7)', note: 'Long Change Day 4 • Peak Recovery Window' },
+      { code: 'OFF', blockLabel: '7-Day Long Break (5/7)', note: 'Long Change Day 5 • Full Dumbbell & Postural Split' },
+      { code: 'OFF', blockLabel: '7-Day Long Break (6/7)', note: 'Long Change Day 6 • Normal Schedule' },
+      { code: 'FLIP', blockLabel: '7-Day Long Break (7/7)', note: 'Night Hitch Eve • Stay up late + nap tomorrow 12:30–14:30 for Friday Night Shift' },
+
+      // Days 22-25: Fri, Sat, Sun, Mon (4 Nights: 16:00 - 04:00)
+      { code: 'NIGHT', blockLabel: '4-Night Hitch (1/4)', note: '16:00–04:00 Night Shift • Clock-in 16:00, Cutoff 22:00' },
+      { code: 'NIGHT', blockLabel: '4-Night Hitch (2/4)', note: '16:00–04:00 Night Shift • Blackout sleep 05:00–13:30' },
+      { code: 'NIGHT', blockLabel: '4-Night Hitch (3/4)', note: '16:00–04:00 Night Shift • High cumulative load — use Compex EMS' },
+      { code: 'NIGHT', blockLabel: '4-Night Hitch (4/4)', note: 'Final Night Shift • Sleep 05:00–09:30 Tuesday morning to flip circadian rhythm' },
+
+      // Days 26-28: Tue, Wed, Thu (3 Days Off before Friday Day 1 repeat)
+      { code: 'OFF', blockLabel: '3-Day Break (1/3)', note: 'Post-4-Night Reset • Afternoon sunlight & hydration' },
+      { code: 'OFF', blockLabel: '3-Day Break (2/3)', note: 'Off-Rotation Recovery • Moderate Dumbbell & Y-Raise Session' },
+      { code: 'OFF', blockLabel: '3-Day Break (3/3)', note: 'Cycle Reset Eve • Lights out by 19:30 for Friday 04:00 Day Shift!' }
+    ];
 
     const SHIFT_META = {
       DAY: {
         label: "04:00 – 16:00 (Day Shift)",
         short: "04-16 DAY",
-        desc: "Wake at 02:45 • Handover at 04:00 • Post-Shift Workout 16:45 • Sleep Lock 19:30",
         pill: "border-amber-500/50 bg-amber-950/50 text-amber-300"
       },
       NIGHT: {
         label: "16:00 – 04:00 (Night Shift)",
         short: "16-04 NIGHT",
-        desc: "Clock-in 16:00 • Caffeine Cutoff 22:00 • Relief 04:00 • Sleep Lock 05:00–13:30",
         pill: "border-cyan-500/50 bg-cyan-950/50 text-cyan-300"
       },
+      FLIP: {
+        label: "Off — Quick Flip to Nights",
+        short: "FLIP TO NIGHTS",
+        pill: "border-purple-500/50 bg-purple-950/50 text-purple-300"
+      },
       ERT: {
-        label: "16:00 – 04:00 (Night / ERT High-Load)",
+        label: "16:00 – 04:00 (ERT / High-Load)",
         short: "16-04 ERT",
-        desc: "High Autonomic Strain • Zero Heavy Lifts • Compex TENS/Endorphinic Post-Shift",
         pill: "border-rose-500/50 bg-rose-950/50 text-rose-300"
       },
       OFF: {
-        label: "Off-Rotation (Recovery / Transition)",
+        label: "Off-Rotation (Recovery)",
         short: "OFF SHIFT",
-        desc: "Autonomic Rebound • Full 40lb Dumbbell & Postural Split • Circadian Reset",
         pill: "border-emerald-500/50 bg-emerald-950/50 text-emerald-300"
       }
     };
@@ -62,9 +106,7 @@
         var t = tabs[i];
         var panel = document.getElementById('tab-' + t);
         var btn = document.getElementById('nav-' + t);
-        if (panel) {
-          panel.style.display = (t === tabName) ? 'block' : 'none';
-        }
+        if (panel) panel.style.display = (t === tabName) ? 'block' : 'none';
         if (btn) {
           btn.className = (t === tabName)
             ? "py-3 rounded-xl font-mono text-xs font-bold text-cyan-400 bg-slate-900 border border-cyan-500/50"
@@ -88,30 +130,68 @@
       window.location.reload(true);
     };
 
-    function getShiftForDate(patternKey, anchorStr, targetStr) {
-      var pattern = SHIFT_PATTERNS[patternKey] || SHIFT_PATTERNS.DUPONT;
-      var anchor = new Date((anchorStr || "2026-11-02") + "T00:00:00");
+    // Default Anchor = Friday, Nov 6, 2026 (Day 1 of 3-Day Fri-Sat-Sun hitch)
+    function getCycleDayInfo(anchorStr, targetStr) {
+      var anchor = new Date((anchorStr || "2026-11-06") + "T00:00:00");
       var target = new Date((targetStr || "2026-11-06") + "T00:00:00");
       var diffDays = Math.round((target - anchor) / 86400000);
-      var len = pattern.length;
-      var index = ((diffDays % len) + len) % len;
-      return { code: pattern[index] || 'DAY', cycleDay: index + 1, totalDays: len };
+      var index = ((diffDays % 28) + 28) % 28;
+      var entry = C_SHIFT_28_CYCLE[index];
+      return {
+        code: entry.code,
+        blockLabel: entry.blockLabel,
+        note: entry.note,
+        cycleDay: index + 1,
+        totalDays: 28
+      };
     }
 
-    function computeLocalPlan(sleep, hrv, rhr, shiftCode) {
+    function computeLocalPlan(sleep, hrv, rhr, shiftCode, blockLabel) {
       var readiness = "Moderate";
       if (sleep >= 78 && hrv >= -4) readiness = "High";
       else if (sleep < 65 || hrv <= -12 || rhr >= 67 || shiftCode === 'ERT') readiness = "Low";
+
+      if (shiftCode === 'DAY') {
+        return {
+          readinessLevel: readiness,
+          cShiftStrategy: readiness === "Low"
+            ? "[" + blockLabel + "] 02:45 wake-up on elevated fatigue. Delay first caffeine until 04:30 after shift handover to prevent a 13:00 plant crash. Fire Govee red wind-down at 19:00 for a strict 19:30 sleep lock."
+            : "[" + blockLabel + "] Solid readiness for your 04:00–16:00 day shift. Pace electrolytes through the morning and cut all caffeine by 11:30 so you can sleep at 19:30.",
+          workoutAdjustment: readiness === "Low"
+            ? "Keep post-shift training light at 16:30: Resistance bands, supine chin tucks, Y-raises, and a 20-min Compex Wireless 2.0 'Relaxing Massage' or 'Capillarization' cycle."
+            : "Cleared for a 35-min post-shift session at 16:45: 40 lb dumbbell compound sets, glute bridges, weighted crunches, and Compex 'Strength' mode.",
+          mealTimings: [
+            "03:15 — Pre-shift primer: Eggs or protein shake + electrolytes before 04:00 handover",
+            "08:30 — Morning plant meal: High-protein breakfast wrap or bowl",
+            "12:30 — Afternoon plant lunch: Lean protein + slow-digesting carbs to carry through 16:00",
+            "17:30 — Post-workout dinner at home: High protein + greens (finish eating by 18:15 for 19:30 sleep)"
+          ]
+        };
+      }
+
+      if (shiftCode === 'FLIP') {
+        return {
+          readinessLevel: readiness,
+          cShiftStrategy: "[" + blockLabel + "] Critical circadian flip day before tomorrow's 16:00–04:00 Night Shift. Stay up past midnight tonight, sleep in tomorrow morning, or lock in a 90-min prophylactic nap from 12:30–14:00 before clock-in.",
+          workoutAdjustment: "Hit a full 45-min 40 lb dumbbell & postural session (glute bridges, weighted crunches, supine chin tucks, Y-raises) in the late afternoon today to help delay your circadian clock.",
+          mealTimings: [
+            "09:00 — Late recovery breakfast: High protein + hydration",
+            "13:30 — Midday fuel before afternoon training session",
+            "18:30 — Post-workout dinner: Clean protein and complex carbs",
+            "23:30 — Late-night anchor snack to push your sleep window later into the night"
+          ]
+        };
+      }
 
       if (shiftCode === 'NIGHT' || shiftCode === 'ERT') {
         return {
           readinessLevel: readiness,
           cShiftStrategy: readiness === "Low"
-            ? "Coming off 04:00 handover with suppressed HRV (" + hrv + "%). Lock down blackout curtains by 05:00 sharp. Hard caffeine cutoff at 22:00 tonight so stimulants clear before 04:00 relief."
-            : "Night rotation stable for 16:00–04:00. Hydrate with electrolytes at 15:00, cap last coffee at 22:30, and lock down sleep from 05:00 to 13:30.",
+            ? "[" + blockLabel + "] Working 16:00–04:00 with suppressed HRV (" + hrv + "%). Lock down blackout curtains by 05:00 sharp. Hard caffeine cutoff at 22:00 tonight so stimulants clear before 04:00 relief."
+            : "[" + blockLabel + "] Night rotation stable for 16:00–04:00. Hydrate with electrolytes at 15:00, cap last coffee at 22:30, and protect daytime sleep from 05:00 to 13:30.",
           workoutAdjustment: readiness === "Low"
-            ? "Skip heavy 40 lb presses today. Run a 20-min Compex Wireless 2.0 'Active Recovery' or 'Capillarization' cycle on quads/lower back before 05:00 sleep, plus 2 sets of supine chin tucks & Y-raises at 14:30."
-            : "14:30 pre-shift session cleared: 30 mins moderate 40 lb dumbbells, glute bridges, weighted crunches, and Y-raises.",
+            ? "Skip heavy 40 lb presses today. Run a 20-min Compex Wireless 2.0 'Active Recovery' cycle on quads/lower back before 05:00 sleep, plus 2 sets of supine chin tucks & Y-raises at 14:30."
+            : "14:15 pre-shift session cleared: 30 mins moderate 40 lb dumbbells, glute bridges, weighted crunches, and Y-raises.",
           mealTimings: [
             "04:30 — Post-shift whey shake or light snack before 05:00 sleep (avoid heavy fats)",
             "14:00 — Wake-up anchor meal: High protein + complex carbs before 16:00 clock-in",
@@ -121,50 +201,34 @@
         };
       }
 
-      if (shiftCode === 'DAY') {
-        return {
-          readinessLevel: readiness,
-          cShiftStrategy: readiness === "Low"
-            ? "02:45 wake-up with elevated fatigue. Delay first caffeine until 04:30 after shift handover to prevent a 13:00 crash. Fire Govee red wind-down at 19:00 for a 19:30 sleep target."
-            : "Strong readiness for the 04:00–16:00 day hitch. Pace hydration across the morning and lock down sleep by 19:30.",
-          workoutAdjustment: readiness === "Low"
-            ? "Keep post-shift training light at 16:30: Resistance bands, supine chin tucks, Y-raises, and a 20-min Compex EMS 'Relaxing Massage' cycle."
-            : "Cleared for a 35-min post-shift session at 16:45: 40 lb dumbbell compound sets, glute bridges, weighted crunches, and Compex 'Strength' mode.",
-          mealTimings: [
-            "03:15 — Pre-shift primer: Eggs or protein shake + electrolytes before 04:00 clock-in",
-            "08:30 — Morning plant meal: High-protein wrap or breakfast bowl",
-            "12:30 — Afternoon plant lunch: Balanced protein and slow carbs to carry through 16:00",
-            "17:30 — Post-workout dinner at home: High protein + veggies (finish by 18:15 for 19:30 sleep)"
-          ]
-        };
-      }
-
       return {
         readinessLevel: readiness,
-        cShiftStrategy: "Off-rotation recovery day. Anchor circadian rhythm with morning sunlight and steady hydration.",
-        workoutAdjustment: "Full green light: 40 lb dumbbell hypertrophy split, resistance bands, glute bridges, weighted crunches, and Compex 'Resistance' program.",
+        cShiftStrategy: "[" + blockLabel + "] Off-rotation recovery window. Anchor your circadian rhythm with natural morning sunlight, yard/garden work, and steady hydration.",
+        workoutAdjustment: "Full green light: 40 lb dumbbell hypertrophy split, resistance bands, glute bridges, weighted crunches, Y-raises, and Compex 'Resistance' program.",
         mealTimings: [
           "08:00 — High-protein breakfast + hydration",
           "12:30 — Pre-training lunch: Lean protein and complex carbs",
           "16:00 — Post-workout recovery meal or shake",
-          "19:30 — Evening dinner (3-hour buffer before sleep)"
+          "19:30 — Evening dinner (maintain 3-hour buffer before sleep)"
         ]
       };
     }
 
-    function getActiveShiftCode() {
-      var ov = document.getElementById('input-shift-override');
-      if (ov && ov.value !== 'AUTO') return ov.value;
-      var pattern = document.getElementById('cal-pattern')?.value || 'DUPONT';
-      var anchor = document.getElementById('cal-anchor')?.value || '2026-11-02';
+    function getActiveShiftData() {
+      var anchor = document.getElementById('cal-anchor')?.value || '2026-11-06';
       var target = document.getElementById('cal-target')?.value || '2026-11-06';
-      return getShiftForDate(pattern, anchor, target).code;
+      var info = getCycleDayInfo(anchor, target);
+      var ov = document.getElementById('input-shift-override');
+      if (ov && ov.value !== 'AUTO') {
+        return { code: ov.value, blockLabel: 'Manual Override (' + ov.value + ')', note: info.note, cycleDay: info.cycleDay, totalDays: 28 };
+      }
+      return info;
     }
 
-    function renderPlan(plan, shiftCode) {
-      var meta = SHIFT_META[shiftCode] || SHIFT_META.NIGHT;
+    function renderPlan(plan, shiftData) {
+      var meta = SHIFT_META[shiftData.code] || SHIFT_META.DAY;
       var labelEl = document.getElementById('plan-shift-label');
-      if (labelEl) labelEl.textContent = meta.label;
+      if (labelEl) labelEl.textContent = meta.label + " • " + shiftData.blockLabel;
 
       var badge = document.getElementById('plan-readiness-badge');
       if (badge) {
@@ -194,9 +258,9 @@
     }
 
     window.updateSliders = function() {
-      var sleep = parseInt(document.getElementById('input-sleep')?.value || "61", 10);
-      var hrv = parseInt(document.getElementById('input-hrv')?.value || "-16", 10);
-      var rhr = parseInt(document.getElementById('input-rhr')?.value || "68", 10);
+      var sleep = parseInt(document.getElementById('input-sleep')?.value || "74", 10);
+      var hrv = parseInt(document.getElementById('input-hrv')?.value || "-5", 10);
+      var rhr = parseInt(document.getElementById('input-rhr')?.value || "60", 10);
 
       var sleepEl = document.getElementById('val-sleep');
       if (sleepEl) sleepEl.textContent = sleep + " / 100";
@@ -208,28 +272,33 @@
       var rhrEl = document.getElementById('val-rhr');
       if (rhrEl) rhrEl.textContent = rhr + " BPM";
 
-      var shiftCode = getActiveShiftCode();
-      var meta = SHIFT_META[shiftCode] || SHIFT_META.NIGHT;
+      var shiftData = getActiveShiftData();
+      var meta = SHIFT_META[shiftData.code] || SHIFT_META.DAY;
       var pill = document.getElementById('active-shift-pill');
       if (pill) {
         pill.textContent = meta.short;
         pill.className = "px-3 py-1 rounded-full border text-xs font-mono font-bold uppercase " + meta.pill;
       }
 
-      renderPlan(computeLocalPlan(sleep, hrv, rhr, shiftCode), shiftCode);
+      renderPlan(computeLocalPlan(sleep, hrv, rhr, shiftData.code, shiftData.blockLabel), shiftData);
     };
 
     window.applyPreset = function(name) {
-      if (name === 'nightFatigue') {
-        document.getElementById('input-sleep').value = 61;
-        document.getElementById('input-hrv').value = -16;
-        document.getElementById('input-rhr').value = 68;
-        document.getElementById('input-shift-override').value = 'NIGHT';
-      } else if (name === 'dayGrind') {
+      if (name === 'dayGrind') {
         document.getElementById('input-sleep').value = 74;
         document.getElementById('input-hrv').value = -5;
         document.getElementById('input-rhr').value = 60;
         document.getElementById('input-shift-override').value = 'DAY';
+      } else if (name === 'nightFatigue') {
+        document.getElementById('input-sleep').value = 61;
+        document.getElementById('input-hrv').value = -16;
+        document.getElementById('input-rhr').value = 68;
+        document.getElementById('input-shift-override').value = 'NIGHT';
+      } else if (name === 'quickFlip') {
+        document.getElementById('input-sleep').value = 76;
+        document.getElementById('input-hrv').value = -2;
+        document.getElementById('input-rhr').value = 58;
+        document.getElementById('input-shift-override').value = 'FLIP';
       } else if (name === 'offPeak') {
         document.getElementById('input-sleep').value = 88;
         document.getElementById('input-hrv').value = 8;
@@ -240,36 +309,38 @@
     };
 
     window.saveCalendarConfig = function() {
-      var pattern = document.getElementById('cal-pattern')?.value || 'DUPONT';
-      var anchor = document.getElementById('cal-anchor')?.value || '2026-11-02';
+      var anchor = document.getElementById('cal-anchor')?.value || '2026-11-06';
       var target = document.getElementById('cal-target')?.value || '2026-11-06';
 
       try {
-        localStorage.setItem('ch_pattern', pattern);
-        localStorage.setItem('ch_anchor', anchor);
+        localStorage.setItem('ch_anchor_v26', anchor);
       } catch (e) {}
 
-      var info = getShiftForDate(pattern, anchor, target);
+      var info = getCycleDayInfo(anchor, target);
       var meta = SHIFT_META[info.code] || SHIFT_META.DAY;
 
       var titleEl = document.getElementById('detected-shift-title');
-      if (titleEl) titleEl.textContent = target + " • " + meta.label + " (Day " + info.cycleDay + "/" + info.totalDays + ")";
+      if (titleEl) titleEl.textContent = target + " • " + info.blockLabel + " — " + meta.label + " (Day " + info.cycleDay + "/28)";
       var descEl = document.getElementById('detected-shift-desc');
-      if (descEl) descEl.textContent = meta.desc;
+      if (descEl) descEl.textContent = info.note;
 
+      // Render Full 28-Day Lookahead Grid so you can see the whole rotation
       var grid = document.getElementById('calendar-grid');
       if (grid) {
         grid.innerHTML = '';
         var start = new Date(target + "T00:00:00");
-        for (var i = 0; i < 14; i++) {
+        for (var i = 0; i < 28; i++) {
           var d = new Date(start);
           d.setDate(start.getDate() + i);
           var iso = d.toISOString().slice(0, 10);
-          var dayInfo = getShiftForDate(pattern, anchor, iso);
+          var dayInfo = getCycleDayInfo(anchor, iso);
           var dayMeta = SHIFT_META[dayInfo.code] || SHIFT_META.DAY;
           var card = document.createElement('div');
           card.className = "p-2.5 rounded-lg border bg-slate-950 flex flex-col justify-between " + dayMeta.pill;
-          card.innerHTML = '<div class="text-[10px] font-mono opacity-80">' + d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + '</div><div class="text-xs font-mono font-bold mt-1">' + dayMeta.short + '</div><div class="text-[10px] font-mono opacity-70 mt-0.5">Day ' + dayInfo.cycleDay + '</div>';
+          card.innerHTML =
+            '<div class="text-[10px] font-mono opacity-80">' + d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + '</div>' +
+            '<div class="text-xs font-mono font-bold mt-1">' + dayMeta.short + '</div>' +
+            '<div class="text-[10px] font-mono opacity-80 mt-0.5">' + dayInfo.blockLabel + '</div>';
           grid.appendChild(card);
         }
       }
@@ -282,18 +353,18 @@
       var sleep = document.getElementById('input-sleep').value;
       var hrv = document.getElementById('input-hrv').value;
       var rhr = document.getElementById('input-rhr').value;
-      var shiftCode = getActiveShiftCode();
-      var meta = SHIFT_META[shiftCode] || SHIFT_META.DAY;
+      var shiftData = getActiveShiftData();
+      var meta = SHIFT_META[shiftData.code] || SHIFT_META.DAY;
 
       if (!apiKey) {
-        if (statusEl) statusEl.textContent = "Local 4-to-4 Engine Active (Add Gemini Key in Setup/API tab for cloud AI).";
+        if (statusEl) statusEl.textContent = "Local C-Shift Engine Active (Add Gemini Key in Setup/API tab for cloud AI).";
         window.updateSliders();
         return;
       }
 
       if (statusEl) statusEl.textContent = "Calling Gemini 2.5 Flash API...";
       try {
-        var prompt = "You are the biometric recovery engine for ChronoHume. User works 12-hour C-Shift rotations from 04:00-16:00 (Day) and 16:00-04:00 (Night). Active Shift: " + meta.label + ". Sleep Score: " + sleep + "/100, HRV Deviation: " + hrv + "%, Resting HR: " + rhr + " BPM. Equipment: 40lb dumbbells, resistance bands, Compex Wireless 2.0 EMS, supine chin tucks, Y-raises. Return strictly valid JSON with keys: readinessLevel (Low, Moderate, or High), workoutAdjustment (string), mealTimings (array of 4 timestamped strings anchored to 04:00-16:00 or 16:00-04:00), cShiftStrategy (string).";
+        var prompt = "You are the biometric recovery engine for ChronoHume. User is a C-Shift Plant Operator & ERT Captain on a 28-day cycle (3 Days 04:00-16:00, 1 Off Quick Flip, 3 Nights 16:00-04:00, 3 Off, 4 Days 04:00-16:00, 7 Off, 4 Nights 16:00-04:00, 3 Off). Today's status: " + shiftData.blockLabel + " (" + meta.label + " — " + shiftData.note + "). Biometrics: Sleep Score " + sleep + "/100, HRV Deviation " + hrv + "%, Resting HR " + rhr + " BPM. Equipment: 40lb dumbbells, resistance bands, Compex Wireless 2.0 EMS, supine chin tucks, Y-raises. Return strictly valid JSON with keys: readinessLevel (Low, Moderate, or High), workoutAdjustment (string), mealTimings (array of 4 timestamped strings anchored to 04:00-16:00 or 16:00-04:00), cShiftStrategy (string).";
 
         var res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey, {
           method: 'POST',
@@ -306,10 +377,10 @@
         var data = await res.json();
         var text = data.candidates?.[0]?.content?.parts?.[0]?.text;
         if (!text) throw new Error("Invalid API response");
-        renderPlan(JSON.parse(text), shiftCode);
+        renderPlan(JSON.parse(text), shiftData);
         if (statusEl) statusEl.textContent = "Synced with Gemini 2.5 Flash (" + new Date().toLocaleTimeString() + ")";
       } catch (err) {
-        if (statusEl) statusEl.textContent = "API Error (using local 4-to-4 engine): " + err.message;
+        if (statusEl) statusEl.textContent = "API Error (using local engine): " + err.message;
         window.updateSliders();
       }
     };
@@ -317,7 +388,7 @@
     window.triggerGovee = async function(eventName) {
       var key = localStorage.getItem('ch_ifttt_key') || '';
       var log = document.getElementById('govee-log');
-      var shiftCode = getActiveShiftCode();
+      var shiftData = getActiveShiftData();
       if (!key) {
         if (log) log.textContent = "[SIMULATED] POST https://maker.ifttt.com/trigger/" + eventName + "/with/key/YOUR_KEY (Add IFTTT key in Setup/API)";
         return;
@@ -328,7 +399,7 @@
           method: 'POST',
           mode: 'no-cors',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ value1: shiftCode, value2: new Date().toISOString() })
+          body: JSON.stringify({ value1: shiftData.blockLabel, value2: new Date().toISOString() })
         });
         if (log) log.textContent = "Triggered " + eventName + " at " + new Date().toLocaleTimeString() + "!";
       } catch (e) {
@@ -350,8 +421,7 @@
 
     window.addEventListener('DOMContentLoaded', function() {
       try {
-        document.getElementById('cal-pattern').value = localStorage.getItem('ch_pattern') || 'DUPONT';
-        document.getElementById('cal-anchor').value = localStorage.getItem('ch_anchor') || '2026-11-02';
+        document.getElementById('cal-anchor').value = localStorage.getItem('ch_anchor_v26') || '2026-11-06';
         document.getElementById('cal-target').value = new Date().toISOString().slice(0, 10);
         document.getElementById('cfg-gemini-key').value = localStorage.getItem('ch_gemini_key') || '';
         document.getElementById('cfg-ifttt-key').value = localStorage.getItem('ch_ifttt_key') || '';
@@ -373,15 +443,15 @@
           </h1>
         </div>
         <p class="text-[10px] text-slate-400 font-mono mt-0.5">
-          C-SHIFT ENGINE • 04:00–16:00 / 16:00–04:00 (v2.5)
+          C-SHIFT 28-DAY ENGINE • 04:00–16:00 / 16:00–04:00 (v2.6)
         </p>
       </div>
       <div class="flex items-center gap-2">
         <button type="button" onclick="forceHardRefresh()" class="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-[10px] font-mono text-slate-300">
           Reload Cache
         </button>
-        <span id="active-shift-pill" class="px-3 py-1 rounded-full border text-xs font-mono font-bold uppercase border-cyan-500/50 bg-cyan-950/40 text-cyan-300">
-          16-04 NIGHT
+        <span id="active-shift-pill" class="px-3 py-1 rounded-full border text-xs font-mono font-bold uppercase border-amber-500/50 bg-amber-950/50 text-amber-300">
+          04-16 DAY
         </span>
       </div>
     </div>
@@ -390,22 +460,25 @@
   <!-- MAIN CONTAINER -->
   <main class="max-w-5xl w-full mx-auto px-4 pt-4 flex-1">
 
-<!-- TAB 1: BIOMETRIC HUD (VISIBLE BY DEFAULT) -->
+    <!-- TAB 1: BIOMETRIC HUD (VISIBLE BY DEFAULT) -->
     <section id="tab-hud" style="display: block;" class="space-y-5">
       <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
         <div>
-          <span class="text-[10px] font-mono uppercase tracking-widest text-slate-400">AUTO-DETECTED 4-TO-4 STATUS</span>
-          <h2 id="detected-shift-title" class="text-base md:text-lg font-bold text-white font-mono">2026-11-06 • 16:00 – 04:00 (Night Shift)</h2>
-          <p id="detected-shift-desc" class="text-xs text-slate-400 mt-0.5">Clock-in 16:00 • Caffeine Cutoff 22:00 • Relief 04:00 • Sleep Lock 05:00–13:30</p>
+          <span class="text-[10px] font-mono uppercase tracking-widest text-slate-400">AUTO-DETECTED C-SHIFT ROTATION</span>
+          <h2 id="detected-shift-title" class="text-base md:text-lg font-bold text-white font-mono">2026-11-06 • 3-Day Hitch (1/3) — 04:00 – 16:00 (Day Shift)</h2>
+          <p id="detected-shift-desc" class="text-xs text-slate-400 mt-0.5">04:00–16:00 Day Shift • Sleep Target 19:30</p>
         </div>
-        <div class="flex gap-2 w-full md:w-auto">
-          <button type="button" onclick="applyPreset('nightFatigue')" class="flex-1 md:flex-initial px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono text-slate-300">
-            16-04 Night
-          </button>
-          <button type="button" onclick="applyPreset('dayGrind')" class="flex-1 md:flex-initial px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono text-slate-300">
+        <div class="flex flex-wrap gap-1.5 w-full md:w-auto">
+          <button type="button" onclick="applyPreset('dayGrind')" class="px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono text-amber-300">
             04-16 Day
           </button>
-          <button type="button" onclick="applyPreset('offPeak')" class="flex-1 md:flex-initial px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono text-slate-300">
+          <button type="button" onclick="applyPreset('quickFlip')" class="px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono text-purple-300">
+            Mon Flip
+          </button>
+          <button type="button" onclick="applyPreset('nightFatigue')" class="px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono text-cyan-300">
+            16-04 Night
+          </button>
+          <button type="button" onclick="applyPreset('offPeak')" class="px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono text-emerald-300">
             Off-Shift
           </button>
         </div>
@@ -421,34 +494,35 @@
           <div>
             <div class="flex justify-between text-xs font-mono mb-1">
               <span class="text-slate-400">SLEEP SCORE</span>
-              <span id="val-sleep" class="text-cyan-400 font-bold">61 / 100</span>
+              <span id="val-sleep" class="text-cyan-400 font-bold">74 / 100</span>
             </div>
-            <input id="input-sleep" type="range" min="30" max="100" value="61" oninput="updateSliders()" class="w-full accent-cyan-400" />
+            <input id="input-sleep" type="range" min="30" max="100" value="74" oninput="updateSliders()" class="w-full accent-cyan-400" />
           </div>
 
           <div>
             <div class="flex justify-between text-xs font-mono mb-1">
               <span class="text-slate-400">HRV BASELINE DEV</span>
-              <span id="val-hrv" class="text-rose-400 font-bold">-16%</span>
+              <span id="val-hrv" class="text-rose-400 font-bold">-5%</span>
             </div>
-            <input id="input-hrv" type="range" min="-35" max="25" value="-16" oninput="updateSliders()" class="w-full accent-cyan-400" />
+            <input id="input-hrv" type="range" min="-35" max="25" value="-5" oninput="updateSliders()" class="w-full accent-cyan-400" />
           </div>
 
           <div>
             <div class="flex justify-between text-xs font-mono mb-1">
               <span class="text-slate-400">RESTING HR</span>
-              <span id="val-rhr" class="text-white font-bold">68 BPM</span>
+              <span id="val-rhr" class="text-white font-bold">60 BPM</span>
             </div>
-            <input id="input-rhr" type="range" min="45" max="90" value="68" oninput="updateSliders()" class="w-full accent-cyan-400" />
+            <input id="input-rhr" type="range" min="45" max="90" value="60" oninput="updateSliders()" class="w-full accent-cyan-400" />
           </div>
 
           <div>
             <label class="block text-xs font-mono text-slate-400 mb-1">SHIFT OVERRIDE</label>
             <select id="input-shift-override" onchange="updateSliders()" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-cyan-300">
-              <option value="AUTO">Auto-Detect from Calendar</option>
+              <option value="AUTO">Auto-Detect from Your 28-Day Cycle</option>
               <option value="DAY">04:00 - 16:00 (Day Shift)</option>
+              <option value="FLIP">Quick Flip (Day to Night Transition)</option>
               <option value="NIGHT">16:00 - 04:00 (Night Shift)</option>
-              <option value="ERT">16:00 - 04:00 (ERT / Turnaround High-Load)</option>
+              <option value="ERT">16:00 - 04:00 (ERT / High-Load)</option>
               <option value="OFF">Off-Rotation (Recovery Day)</option>
             </select>
           </div>
@@ -459,15 +533,15 @@
           <p id="sync-status" class="text-[11px] font-mono text-center text-slate-400"></p>
         </div>
 
-        <!-- Recovery Output Card (Pre-filled so it's never blank) -->
+        <!-- Recovery Output Card -->
         <div class="lg:col-span-2 bg-slate-900/90 border border-slate-800 rounded-xl p-5 space-y-5">
           <div class="flex justify-between items-center border-b border-slate-800 pb-3">
             <div>
               <span class="text-[10px] font-mono text-slate-400 uppercase tracking-widest">GEMINI RECOVERY PROTOCOL</span>
-              <h3 id="plan-shift-label" class="text-base md:text-lg font-bold text-white">16:00 – 04:00 (Night Shift)</h3>
+              <h3 id="plan-shift-label" class="text-base md:text-lg font-bold text-white">04:00 – 16:00 (Day Shift) • 3-Day Hitch (1/3)</h3>
             </div>
-            <span id="plan-readiness-badge" class="px-3 py-1 rounded-full border font-mono text-xs font-bold uppercase text-rose-400 border-rose-500/60 bg-rose-950/40">
-              Readiness: Low
+            <span id="plan-readiness-badge" class="px-3 py-1 rounded-full border font-mono text-xs font-bold uppercase text-amber-400 border-amber-500/60 bg-amber-950/40">
+              Readiness: Moderate
             </span>
           </div>
 
@@ -476,7 +550,7 @@
               // 4-to-4 Circadian & Caffeine Protocol
             </h4>
             <p id="plan-strategy" class="bg-slate-950 border border-slate-800 p-3.5 rounded-lg text-sm text-slate-200 leading-relaxed">
-              Coming off 04:00 handover with suppressed HRV (-16%). Lock down blackout curtains by 05:00 sharp. Hard caffeine cutoff at 22:00 tonight so stimulants clear before 04:00 relief.
+              [3-Day Hitch (1/3)] Solid readiness for your 04:00–16:00 day shift. Pace electrolytes through the morning and cut all caffeine by 11:30 so you can sleep at 19:30.
             </p>
           </div>
 
@@ -485,7 +559,7 @@
               // Conditioning (40lb Dumbbells / Y-Raises / Compex 2.0)
             </h4>
             <p id="plan-workout" class="bg-slate-950 border border-slate-800 p-3.5 rounded-lg text-sm text-slate-200 leading-relaxed">
-              Skip heavy 40 lb presses today. Run a 20-min Compex Wireless 2.0 'Active Recovery' or 'Capillarization' cycle on quads/lower back before 05:00 sleep, plus 2 sets of supine chin tucks & Y-raises at 14:30.
+              Cleared for a 35-min post-shift session at 16:45: 40 lb dumbbell compound sets, glute bridges, weighted crunches, and Compex 'Strength' mode.
             </p>
           </div>
 
@@ -494,37 +568,32 @@
               // 04:00–16:00 / 16:00–04:00 Fueling Windows
             </h4>
             <ul id="plan-meals" class="bg-slate-950 border border-slate-800 p-3.5 rounded-lg space-y-2.5 text-sm text-slate-200">
-              <li class="flex items-start"><span class="text-emerald-400 font-mono font-bold mr-3">01</span><span>04:30 — Post-shift whey shake or light snack before 05:00 sleep</span></li>
-              <li class="flex items-start"><span class="text-emerald-400 font-mono font-bold mr-3">02</span><span>14:00 — Wake-up anchor meal: High protein + complex carbs before 16:00 clock-in</span></li>
-              <li class="flex items-start"><span class="text-emerald-400 font-mono font-bold mr-3">03</span><span>20:30 — Mid-shift plant meal: Lean protein, greens, slow-digesting carbs</span></li>
-              <li class="flex items-start"><span class="text-emerald-400 font-mono font-bold mr-3">04</span><span>00:30 — Final light fuel window: Greek yogurt, berries, or nuts</span></li>
+              <li class="flex items-start"><span class="text-emerald-400 font-mono font-bold mr-3">01</span><span>03:15 — Pre-shift primer: Eggs or protein shake + electrolytes before 04:00 handover</span></li>
+              <li class="flex items-start"><span class="text-emerald-400 font-mono font-bold mr-3">02</span><span>08:30 — Morning plant meal: High-protein breakfast wrap or bowl</span></li>
+              <li class="flex items-start"><span class="text-emerald-400 font-mono font-bold mr-3">03</span><span>12:30 — Afternoon plant lunch: Lean protein + slow-digesting carbs to carry through 16:00</span></li>
+              <li class="flex items-start"><span class="text-emerald-400 font-mono font-bold mr-3">04</span><span>17:30 — Post-workout dinner at home: High protein + greens (finish eating by 18:15 for 19:30 sleep)</span></li>
             </ul>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- TAB 2: 4-TO-4 SHIFT CALENDAR CALCULATOR -->
+    <!-- TAB 2: 28-DAY C-SHIFT CALENDAR CALCULATOR -->
     <section id="tab-calendar" style="display: none;" class="space-y-5">
       <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-5 space-y-4">
         <h2 class="text-base font-bold text-cyan-400 font-mono uppercase tracking-wider">
-          4-to-4 C-Shift Rotation Calculator
+          Your Exact 28-Day C-Shift Schedule (Anchored Fri Nov 6, 2026)
         </h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+        <p class="text-xs text-slate-400">
+          Pattern locked to: <strong>3 Days (Fri-Sun) &rarr; 1 Off (Mon) &rarr; 3 Nights (Tue-Thu) &rarr; 3 Off (Fri-Sun) &rarr; 4 Days (Mon-Thu) &rarr; 7 Off (Fri-Thu) &rarr; 4 Nights (Fri-Mon) &rarr; 3 Off (Tue-Thu)</strong>.
+        </p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
           <div>
-            <label class="block text-xs font-mono text-slate-400 mb-1">ROTATION PATTERN</label>
-            <select id="cal-pattern" onchange="saveCalendarConfig()" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-xs font-mono text-cyan-300">
-              <option value="DUPONT">DuPont 28-Day Cycle</option>
-              <option value="FOUR_FOUR">4-On / 4-Off Rotating</option>
-              <option value="PITMAN">2-2-3 Pitman (28-Day)</option>
-            </select>
+            <label class="block text-xs font-mono text-slate-400 mb-1">CYCLE DAY 1 ANCHOR (FRIDAY DAY 1 OF 3-DAY HITCH)</label>
+            <input id="cal-anchor" type="date" value="2026-11-06" onchange="saveCalendarConfig()" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-white" />
           </div>
           <div>
-            <label class="block text-xs font-mono text-slate-400 mb-1">CYCLE DAY 1 ANCHOR (FIRST 04:00 DAY SHIFT)</label>
-            <input id="cal-anchor" type="date" value="2026-11-02" onchange="saveCalendarConfig()" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-white" />
-          </div>
-          <div>
-            <label class="block text-xs font-mono text-slate-400 mb-1">TARGET PREVIEW DATE</label>
+            <label class="block text-xs font-mono text-slate-400 mb-1">TARGET PREVIEW DATE (TAP ANY DATE TO SIMULATE)</label>
             <input id="cal-target" type="date" value="2026-11-06" onchange="saveCalendarConfig()" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-emerald-400" />
           </div>
         </div>
@@ -532,7 +601,7 @@
 
       <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-5 space-y-3">
         <h3 class="text-xs font-mono uppercase tracking-widest text-purple-400">
-          // 14-Day 4-to-4 Rotation Lookahead
+          // Full 28-Day C-Shift Rotation Lookahead
         </h3>
         <div id="calendar-grid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2.5"></div>
       </div>
