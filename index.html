@@ -8,6 +8,8 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>ChronoHume // 4-to-4 HUD</title>
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="apple-touch-icon" href="https://placehold.co/192x192/020617/06b6d4.png?text=CH" />
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body {
@@ -294,38 +296,14 @@
   </nav>
 
   <script>
-    // =========================================================
-    // 1. DYNAMIC PWA MANIFEST & SERVICE WORKER FOR ANDROID
+        // =========================================================
+    // 1. PWA SERVICE WORKER & INSTALL PROMPT FOR ANDROID
     // =========================================================
     (function setupPWA() {
-      const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="96" fill="#020617"/><circle cx="256" cy="256" r="190" stroke="#06b6d4" stroke-width="24" fill="none"/><path d="M160 256h60l36-90 40 180 36-90h50" stroke="#a855f7" stroke-width="24" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-      const iconUrl = "data:image/svg+xml;base64," + btoa(iconSvg);
-
-      const manifest = {
-        name: "ChronoHume 4-to-4 HUD",
-        short_name: "ChronoHume",
-        start_url: ".",
-        display: "standalone",
-        background_color: "#020617",
-        theme_color: "#020617",
-        orientation: "any",
-        icons: [{ src: iconUrl, sizes: "512x512", type: "image/svg+xml", purpose: "any maskable" }]
-      };
-
-      const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
-      const link = document.createElement('link');
-      link.rel = 'manifest';
-      link.href = URL.createObjectURL(manifestBlob);
-      document.head.appendChild(link);
-
-      if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
-        const swCode = `
-          self.addEventListener('install', e => self.skipWaiting());
-          self.addEventListener('activate', e => self.clients.claim());
-          self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => caches.match(e.request))));
-        `;
-        const swBlob = new Blob([swCode], { type: 'application/javascript' });
-        navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(() => {});
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js').catch(err => console.warn('SW fail:', err));
+        });
       }
 
       let deferredPrompt;
@@ -337,11 +315,11 @@
         btn.onclick = async () => {
           deferredPrompt.prompt();
           await deferredPrompt.userChoice;
+          deferredPrompt = null;
           btn.classList.add('hidden');
         };
       });
     })();
-
     // =========================================================
     // 2. 4-TO-4 SHIFT ROTATION CYCLES
     // =========================================================
